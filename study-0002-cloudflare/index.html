@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jev Cloudflare Demo — typesafe/jev on Workers AI</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #f6821f; /* Cloudflare orange */
+    --ok: #3fb950;
+    --warn: #d29922;
+    --err: #f85149;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 0 0 12px; color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 4px; }
+  label.check { display: flex; align-items: center; gap: 8px; }
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: var(--mono);
+  }
+  input[type=checkbox] { width: auto; }
+  textarea { min-height: 90px; resize: vertical; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 120px; }
+  button {
+    background: var(--accent);
+    color: #1a0e00;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.danger { background: var(--err); color: #fff; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .stat .v { font-family: var(--mono); font-size: 1.05rem; color: var(--text); }
+  .stat .k { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat.good .v { color: var(--ok); }
+  canvas { width: 100%; height: 180px; display: block; margin-top: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    overflow: auto;
+    max-height: 320px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .banner { border-radius: 6px; padding: 10px 12px; font-size: 0.8rem; margin-top: 12px; display: none; }
+  .banner.err { display: block; background: rgba(248,81,73,0.12); border: 1px solid var(--err); color: #ffa198; }
+  .progress { height: 4px; background: var(--bg); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); width: 0%; transition: width 0.15s; }
+  .statusline { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+  code { font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 0.8em; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Jev Cloudflare Demo</h1>
+  <div class="sub">Single-page, fully client-side demo for <code>typesafe/jev</code> on Cloudflare Workers AI.
+    Model docs: <a href="https://developers.cloudflare.com/ai/models/typesafe/jev/">developers.cloudflare.com/ai/models/typesafe/jev</a></div>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <h2>Connection</h2>
+    <label for="apiToken">Cloudflare API token (kept in memory only — never persisted, cleared on reload)</label>
+    <input type="password" id="apiToken" autocomplete="off" placeholder="token with Workers AI read access">
+    <label for="accountId">Account ID (memory-only as well)</label>
+    <input type="text" id="accountId" autocomplete="off" placeholder="32-hex Cloudflare account ID">
+    <label for="familySel">Address family for the demo call</label>
+    <select id="familySel">
+      <option value="auto">auto (OS default)</option>
+      <option value="4">IPv4</option>
+      <option value="6">IPv6</option>
+    </select>
+    <label for="demoEndpoint">Demo endpoint</label>
+    <input type="text" id="demoEndpoint">
+    <div class="hint" id="endpointHint"></div>
+  </div>
+
+  <!-- ============ RTT measurement ============ -->
+  <div class="card">
+    <h2>RTT measurement</h2>
+    <div class="hint">
+      api.cloudflare.com is dual-stack (A + AAAA), but browsers cannot pick the address family of a
+      <code>fetch()</code>. Instead, <code>serve.py</code> resolves the host restricted to the chosen
+      family, connects with correct SNI/Host, and times each phase with <code>time.perf_counter()</code>:
+      DNS, TCP connect, TLS handshake, TTFB and total. With keep-alive on (default), warmup requests
+      establish a persistent connection and later samples measure pure HTTP round-trips.
+    </div>
+    <div class="row">
+      <div>
+        <label for="rttFamily">Address family</label>
+        <select id="rttFamily">
+          <option value="4">IPv4</option>
+          <option value="6">IPv6</option>
+          <option value="auto">auto</option>
+        </select>
+      </div>
+      <div><label for="warmup">Warmup requests</label><input type="number" id="warmup" value="3" min="0" max="50"></div>
+      <div><label for="samples">Samples</label><input type="number" id="samples" value="20" min="1" max="1000"></div>
+      <div><label for="interval">Interval (ms)</label><input type="number" id="interval" value="250" min="0" max="60000"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="freshConn"> Fresh TCP+TLS connection per sample
+      (include handshake cost instead of measuring steady-state RTT)</label>
+    <button id="rttStart">Measure</button>
+    <button id="rttStop" class="danger" disabled>Stop</button>
+    <button id="csvBtn" class="secondary" disabled>Export CSV</button>
+    <div class="progress"><div id="progBar"></div></div>
+    <div class="statusline" id="rttStatus">Idle.</div>
+    <div class="stats" id="statsGrid"></div>
+    <canvas id="chart" width="920" height="180"></canvas>
+    <div class="hint">Stats cover successful samples' <code>total_ms</code> (request sent → last byte),
+      measured inside <code>serve.py</code> — no browser or localhost-hop noise. The status line shows
+      the latest sample's phase breakdown and the resolved upstream IP.</div>
+  </div>
+
+  <!-- ============ Jev demo call ============ -->
+  <div class="card">
+    <h2>Jev demo — POST /client/v4/accounts/{id}/ai/run</h2>
+    <label for="stateInput">State</label>
+    <textarea id="stateInput">Help! My payouts have been failing for 3 days. I'm losing sales — please fix this ASAP.</textarea>
+    <label for="modelInput">Model</label>
+    <input type="text" id="modelInput" value="typesafe/jev">
+    <label for="questionsInput">Questions (JSON — noul / choice / score)</label>
+    <textarea id="questionsInput" style="min-height:160px">{
+  "is_urgent": {
+    "type": "noul",
+    "instructions": "Does this convey urgency?",
+    "criteria": { "true": "Explicitly time-sensitive", "false": "No urgency expressed" }
+  },
+  "department": {
+    "type": "choice",
+    "instructions": "Which team should handle this?",
+    "criteria": {
+      "billing": "Payments, invoicing, refunds",
+      "technical": "Bugs, outages, integrations",
+      "sales": "Pricing, upgrades, new accounts"
+    }
+  },
+  "frustration": {
+    "type": "score",
+    "instructions": "How frustrated is the customer?",
+    "criteria": ["Calm", "Frustrated", "Very angry"]
+  }
+}</textarea>
+    <button id="demoRun">Call Jev</button>
+    <div class="banner err" id="corsBanner"></div>
+    <div class="statusline" id="demoStatus"></div>
+    <pre id="demoResult" style="display:none"></pre>
+  </div>
+
+  <div class="hint" style="margin-bottom:24px">
+    Browser → <code>api.cloudflare.com</code> direct calls fail CORS: the preflighted
+    <code>Authorization</code> header gets <code>405</code> back with no
+    <code>Access-Control-Allow-Origin</code>. Serve this page via <code>python3 serve.py</code>
+    (<code>http://localhost:8000</code>) so calls are relayed same-origin through
+    <code>/api/*</code>. Your token and account ID travel only to your own localhost proxy —
+    nothing is persisted. Note that plain <code>python3 -m http.server 8000</code> serves the
+    page but cannot proxy, so the demo call still needs <code>serve.py</code>.
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const DEMO_PATH = "/api/client/v4/accounts/{ACCOUNT_ID}/ai/run";
+const $ = id => document.getElementById(id);
+
+// --- Endpoint default: same-origin proxy when served over HTTP(S) ---
+(function initEndpoint() {
+  const ep = $("demoEndpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + DEMO_PATH
+                     : "https://api.cloudflare.com" + DEMO_PATH.slice(4);
+  $("endpointHint").textContent = viaHttp
+    ? "Same-origin /api/* is proxied to api.cloudflare.com by serve.py ({ACCOUNT_ID} is substituted at call time). Point it at the direct URL to observe the raw CORS failure."
+    : "file:// page: direct calls to api.cloudflare.com are CORS-blocked — serve via serve.py to enable the demo.";
+})();
+
+// ============ RTT measurement ============
+const samples = []; // {i, ok, ms, fam, ip, reused, dns, tcp, tls, ttfb, status, error}
+let running = false, runId = 0;
+
+async function rttOnce(family, fresh) {
+  const t0 = performance.now();
+  try {
+    const resp = await fetch("/rtt?family=" + family + (fresh ? "&keepalive=0" : "&keepalive=1"),
+                             { cache: "no-store" });
+    const d = await resp.json();
+    d.client_ms = performance.now() - t0; // localhost hop + server total — diagnostic only
+    return d;
+  } catch (e) {
+    return { ok: false, error: "cannot reach serve.py: " + e, client_ms: performance.now() - t0 };
+  }
+}
+
+function stats(arr) {
+  if (!arr.length) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const n = s.length;
+  const mean = arr.reduce((a, b) => a + b, 0) / n;
+  const pct = p => {
+    const i = (p / 100) * (n - 1), lo = Math.floor(i), hi = Math.ceil(i);
+    return s[lo] + (s[hi] - s[lo]) * (i - lo);
+  };
+  const sd = Math.sqrt(arr.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
+  let jit = 0;
+  for (let i = 1; i < arr.length; i++) jit += Math.abs(arr[i] - arr[i - 1]);
+  jit = arr.length > 1 ? jit / (arr.length - 1) : 0;
+  return { n, min: s[0], mean, med: pct(50), p90: pct(90), p95: pct(95), max: s[n - 1], sd, jit };
+}
+
+function fmt(x) { return x == null ? "—" : x.toFixed(2); }
+
+function renderStats() {
+  const ok = samples.filter(s => s.ok).map(s => s.ms);
+  const st = stats(ok);
+  const fails = samples.length - ok.length;
+  const cells = [
+    ["n", ok.length + (fails ? ` (+${fails} err)` : "")],
+    ["min", fmt(st && st.min)], ["mean", fmt(st && st.mean)], ["median", fmt(st && st.med)],
+    ["p90", fmt(st && st.p90)], ["p95", fmt(st && st.p95)], ["max", fmt(st && st.max)],
+    ["stddev", fmt(st && st.sd)], ["jitter", fmt(st && st.jit)],
+  ];
+  $("statsGrid").innerHTML = cells.map(([k, v]) =>
+    `<div class="stat${k === "mean" ? " good" : ""}"><div class="v">${v}</div><div class="k">${k}</div></div>`).join("");
+  drawChart();
+}
+
+function drawChart() {
+  const c = $("chart"), ctx = c.getContext("2d");
+  const W = c.width, H = c.height, pad = 30;
+  ctx.clearRect(0, 0, W, H);
+  const ok = samples.filter(s => s.ok).map(s => s.ms);
+  if (!ok.length) return;
+  const st = stats(ok);
+  const yMax = st.max * 1.1, yMin = 0;
+  const x = i => pad + (W - 2 * pad) * (ok.length === 1 ? 0.5 : i / (ok.length - 1));
+  const y = v => H - pad - (H - 2 * pad) * (v - yMin) / (yMax - yMin || 1);
+  ctx.font = "10px ui-monospace, monospace";
+  for (const [v, col] of [[st.min, "#3fb950"], [st.mean, "#f6821f"], [st.max, "#f85149"]]) {
+    ctx.strokeStyle = col; ctx.setLineDash([4, 4]); ctx.beginPath();
+    ctx.moveTo(pad, y(v)); ctx.lineTo(W - pad, y(v)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = col; ctx.fillText(v.toFixed(1) + "ms", 4, y(v) + 3);
+  }
+  ctx.strokeStyle = "#f6821f"; ctx.beginPath();
+  ok.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+  ctx.stroke();
+  ctx.fillStyle = "#ffd9b0";
+  ok.forEach((v, i) => { ctx.beginPath(); ctx.arc(x(i), y(v), 2.5, 0, 7); ctx.fill(); });
+  samples.forEach((s, i) => {
+    if (s.ok) return;
+    ctx.fillStyle = "#f85149";
+    ctx.fillRect(pad + (W - 2 * pad) * i / Math.max(samples.length - 1, 1) - 2, H - pad - 3, 4, 6);
+  });
+}
+
+function famLabel(s) { return s.ip && s.ip.includes(":") ? "IPv6" : "IPv4"; }
+
+async function runRtt() {
+  const fam = $("rttFamily").value;
+  const fresh = $("freshConn").checked;
+  const nWarm = Math.max(0, +$("warmup").value || 0);
+  const n = Math.max(1, +$("samples").value || 1);
+  const gap = Math.max(0, +$("interval").value || 0);
+  samples.length = 0;
+  running = true; runId++;
+  const id = runId;
+  $("rttStart").disabled = true; $("rttStop").disabled = false;
+  for (let i = 0; i < nWarm && running && id === runId; i++) {
+    $("rttStatus").textContent = `Warmup ${i + 1}/${nWarm}…`;
+    await rttOnce(fam, fresh);
+  }
+  for (let i = 0; i < n && running && id === runId; i++) {
+    const d = await rttOnce(fam, fresh);
+    const s = { i, ok: !!d.ok, ms: d.total_ms, fam, ip: d.ip, reused: d.reused,
+                dns: d.dns_ms, tcp: d.tcp_ms, tls: d.tls_ms, ttfb: d.ttfb_ms,
+                status: d.status, error: d.error };
+    samples.push(s);
+    $("progBar").style.width = ((i + 1) / n * 100) + "%";
+    $("rttStatus").textContent = s.ok
+      ? `Sample ${i + 1}/${n}: ${s.ms.toFixed(2)} ms via ${s.ip} (${famLabel(s)}, ` +
+        `${s.reused ? "reused" : `fresh: dns ${fmt(s.dns)} / tcp ${fmt(s.tcp)} / tls ${fmt(s.tls)}`}` +
+        `, ttfb ${fmt(s.ttfb)}, http ${s.status})`
+      : `Sample ${i + 1}/${n}: error — ${s.error}`;
+    renderStats();
+    if (i < n - 1 && gap) await new Promise(res => setTimeout(res, gap));
+  }
+  running = false;
+  $("rttStart").disabled = false; $("rttStop").disabled = true;
+  $("csvBtn").disabled = !samples.length;
+  $("rttStatus").textContent =
+    `Done — ${samples.filter(s => s.ok).length}/${samples.length} succeeded.`;
+}
+
+$("rttStart").onclick = runRtt;
+$("rttStop").onclick = () => { running = false; };
+$("csvBtn").onclick = () => {
+  const num = v => v == null ? "" : v.toFixed(3);
+  const rows = samples.map(s =>
+    [s.i, s.ok, s.fam, s.ip || "", s.reused ?? "", num(s.dns), num(s.tcp), num(s.tls),
+     num(s.ttfb), num(s.ms), s.status ?? "", (s.error || "").replace(/[\n,]/g, " ")]
+    .join(","));
+  const csv = "sample,ok,family,ip,reused,dns_ms,tcp_ms,tls_ms,ttfb_ms,total_ms,http_status,error\n"
+            + rows.join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "rtt-samples.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// ============ Jev demo call ============
+$("demoRun").onclick = async () => {
+  const token = $("apiToken").value.trim();  // held only in this JS context; never written to storage
+  const acct = $("accountId").value.trim();
+  const banner = $("corsBanner"), out = $("demoResult"), status = $("demoStatus");
+  banner.className = "banner"; banner.style.display = "none";
+  out.style.display = "none";
+  if (!token) { status.textContent = "Enter an API token first."; return; }
+  let ep = $("demoEndpoint").value.trim();
+  if (ep.includes("{ACCOUNT_ID}")) {
+    if (!acct) { status.textContent = "Enter your Account ID (or edit the endpoint)."; return; }
+    ep = ep.replaceAll("{ACCOUNT_ID}", acct);
+  }
+  const fam = $("familySel").value;
+  const u = new URL(ep, location.origin);
+  u.searchParams.delete("family");
+  if (fam !== "auto") u.searchParams.set("family", fam);
+  ep = u.origin === location.origin ? u.pathname + u.search : u.href;
+  let questions;
+  try { questions = JSON.parse($("questionsInput").value); }
+  catch (e) { status.textContent = "Questions JSON is invalid: " + e.message; return; }
+  const payload = {
+    model: $("modelInput").value.trim() || "typesafe/jev",
+    input: { state: $("stateInput").value, questions },
+  };
+  status.textContent = "Calling…";
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(ep, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const ms = performance.now() - t0;
+    const ip = resp.headers.get("x-upstream-ip"), uf = resp.headers.get("x-upstream-family");
+    const body = await resp.text();
+    status.textContent = `HTTP ${resp.status} — ${ms.toFixed(1)} ms round-trip` +
+      (ip ? ` — upstream ${ip} (${uf === "6" ? "IPv6" : uf === "4" ? "IPv4" : "auto"})` : "");
+    try { out.textContent = JSON.stringify(JSON.parse(body), null, 2); }
+    catch { out.textContent = body; }
+    out.style.display = "block";
+  } catch (e) {
+    const ms = performance.now() - t0;
+    status.textContent = `Request failed after ${ms.toFixed(1)} ms: ${e}`;
+    if (e instanceof TypeError) {
+      banner.className = "banner err";
+      const curl = `curl https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/run \\
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify(payload)}'`;
+      banner.innerHTML = "Fetch was blocked before it could complete — almost certainly CORS (the API answers " +
+        "preflights with <code>405</code> and no <code>Access-Control-Allow-Origin</code>). Serve this page via " +
+        "<code>python3 serve.py</code> and keep the endpoint under <code>/api/*</code>, or verify the call manually:<pre>" + curl + "</pre>";
+    }
+  }
+};
+</script>
+</body>
+</html>
