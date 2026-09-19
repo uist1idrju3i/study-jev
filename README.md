@@ -1,5 +1,7 @@
 # study-jev
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/uist1idrju3i/study-jev)
+
 Studies and demos for Jev, the TypeSafe System One model ([docs](https://docs.typesafe.ai/introduction/quickstart)).
 
 | Directory | Description |
