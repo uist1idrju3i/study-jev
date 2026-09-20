@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今川焼き 名称判定デモ — TypeSafe System One (jev)</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --border: #e6dfd4;
+    --text: #2b2622;
+    --muted: #8a8177;
+    --accent: #a03c4b;      /* 小豆 */
+    --accent-soft: #f4e3e6;
+    --gold: #b98a2f;
+    --ok: #2e7d4f;
+    --err: #c0453e;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background:
+      radial-gradient(1200px 400px at 50% -10%, #f3ead9 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; }
+  h1 .yaki { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.82rem; }
+  .sub a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+
+  /* ---- connection ---- */
+  .connrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .connrow > div { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password], textarea {
+    width: 100%;
+    background: #fdfbf8;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(160, 60, 75, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8cfc0; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--accent); }
+
+  /* ---- prompt box ---- */
+  .promptwrap { position: relative; }
+  .promptwrap .icon {
+    position: absolute; left: 14px; top: 14px; font-size: 1.05rem; opacity: 0.45; pointer-events: none;
+  }
+  #prompt {
+    padding: 12px 14px 12px 42px;
+    font-size: 1rem;
+    min-height: 96px;
+    resize: vertical;
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+  .promptrow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f1ece2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  #chars { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+  /* ---- results ---- */
+  .reshead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .reshead h2 { font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; }
+  #topPick { font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+  ol.ranking { list-style: none; margin: 0; padding: 0; }
+  ol.ranking li {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    grid-template-areas: "rank name pct" "rank bar bar";
+    align-items: center;
+    column-gap: 10px;
+    padding: 7px 4px;
+    border-bottom: 1px solid #f2ede3;
+    opacity: 0;
+    animation: pop 0.18s ease-out forwards;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  ol.ranking li:last-child { border-bottom: none; }
+  .rank { grid-area: rank; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-align: center; }
+  ol.ranking li:nth-child(1) .rank { color: var(--accent); font-weight: 700; }
+  ol.ranking li:nth-child(-n+3) .rank { font-weight: 700; }
+  .name { grid-area: name; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .tag {
+    font-size: 0.62rem; font-weight: 500; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 99px; padding: 1px 7px; white-space: nowrap;
+  }
+  .tag.shape { color: var(--gold); border-color: #e5d3a8; background: #faf3e0; }
+  .tag.region { color: var(--accent); border-color: #e8c4ca; background: var(--accent-soft); }
+  .tag.extra { color: #4f6d8a; border-color: #c8d6e2; background: #e9f0f6; }
+  .tag.undef { color: var(--muted); }
+  .pct { grid-area: pct; font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+  .bar { grid-area: bar; height: 5px; background: #f1ece2; border-radius: 3px; overflow: hidden; margin-top: 3px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), #c46a77); border-radius: 3px; transition: width 0.25s ease; }
+  ol.ranking li:nth-child(n+2) .bar > div { background: #cdbfae; }
+  #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+
+  /* ---- stats bar ---- */
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b0a693; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd2c0; }
+
+  /* ---- candidate list ---- */
+  details.cand { font-size: 0.78rem; color: var(--muted); }
+  details.cand summary { cursor: pointer; user-select: none; font-size: 0.78rem; }
+  details.cand summary:hover { color: var(--accent); }
+  .candgrid { columns: 3; column-gap: 18px; margin-top: 8px; font-size: 0.75rem; }
+  @media (max-width: 640px) { .candgrid { columns: 2; } }
+  .candgrid h3 { font-size: 0.72rem; color: var(--accent); margin: 8px 0 3px; break-after: avoid; }
+  .candgrid div { break-inside: avoid; }
+
+  footer { text-align: center; font-size: 0.7rem; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>今川焼き<span class="yaki">名称判定</span></h1>
+    <div class="sub">TypeSafe System One (<code>jev-latest</code>) によるリアルタイム名称推定デモ —
+      候補リストは <a href="https://ja.wikipedia.org/wiki/%E4%BB%8A%E5%B7%9D%E7%84%BC%E3%81%8D">Wikipedia「今川焼き」</a> に基づく73件</div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <div class="connrow">
+      <div>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe APIキー（メモリ内のみ・リロードで消去）</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+      </div>
+    </div>
+    <details class="adv">
+      <summary>詳細設定（エンドポイント / モデル）</summary>
+      <label for="endpoint" style="margin-top:8px">エンドポイント</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">モデル</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Prompt ============ -->
+  <div class="card">
+    <label for="prompt">お菓子の説明（入力するたびに判定が走ります）</label>
+    <div class="promptwrap">
+      <span class="icon">🥮</span>
+      <textarea id="prompt" placeholder="例：九州の屋台で売っていた、円盤形の生地にあんこを挟んで焼いた饅頭" autofocus></textarea>
+    </div>
+    <div class="promptrow">
+      <span class="hint">各キーストロークから <code>180ms</code> のデバウンスで <code>POST /v1/systemone</code> を送信します</span>
+      <span id="chars">0 文字</span>
+    </div>
+  </div>
+
+  <!-- ============ Stats (compact) ============ -->
+  <div class="statsbar" id="statsbar">
+    <span><span class="k">状態</span> <span id="stState">待機</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">直近RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">n</span> <span id="stN">0</span></span>
+    <span><span class="k">平均</span> <span id="stMean">—</span></span>
+    <span><span class="k">min</span> <span id="stMin">—</span></span>
+    <span><span class="k">max</span> <span id="stMax">—</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">tokens</span> <span id="stTok">—</span></span>
+    <span><span class="k">破棄</span> <span id="stStale">0</span></span>
+    <span><span class="k">エラー</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Results ============ -->
+  <div class="card">
+    <div class="reshead">
+      <h2>判定結果 TOP 10</h2>
+      <span id="topPick"></span>
+    </div>
+    <div id="emptyState">APIキーを入力して、お菓子の説明を書き始めてください。</div>
+    <ol class="ranking" id="ranking"></ol>
+    <div id="errline"></div>
+  </div>
+
+  <!-- ============ Candidate list ============ -->
+  <details class="cand card">
+    <summary>候補一覧（73件）を表示</summary>
+    <div class="candgrid" id="candList"></div>
+  </details>
+
+  <footer>study-0003-imagawayaki — based on study-0001-rtt · TypeSafe System One API</footer>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const DEBOUNCE_MS = 180;
+const $ = id => document.getElementById(id);
+
+// ============ Candidate list (Wikipedia「今川焼き」準拠) ============
+// cat: shape=形状や製法に基づく名称 / region=商品名や地域による名称 / extra=追加 / undef=未定義
+const CANDIDATES = [
+  // 形状や製法に基づく名称
+  ["円盤焼", "shape", "円盤状の形状に由来する名称"],
+  ["大判焼き", "shape", "全国各地で主流。小説『大番』と松山丸三の販売に由来"],
+  ["おやき", "shape", "北海道、青森、岩手、茨城西部など。円盤状の菓子「おやき」に由来"],
+  ["回転焼き・回転饅頭", "shape", "大阪市・堺市、九州などで使用"],
+  ["太鼓饅頭・太鼓焼き", "shape", "太鼓の形状に由来。西日本各地、台湾"],
+  ["きんつば", "shape", "千葉、福島、新潟。古い形態のきんつばに由来"],
+  ["ずんどう焼き", "shape", "ずんどう（鍋）形に由来"],
+  ["太閤焼き・太幸焼", "shape", "「太鼓焼き」の転訛とされる名称"],
+  ["大砲焼き", "shape", "形状に由来"],
+  ["天輪（てんりん）焼", "shape", "三重県松阪市。車輪・輪の形状に由来"],
+  ["巴焼き（ともえやき）", "shape", "焼型で表面に巴の紋を焼き付けたもの"],
+  ["義士焼（ぎしやき）", "shape", "巴焼・太鼓焼の別名。東京市、茨城県"],
+  ["二重焼き", "shape", "広島県"],
+  ["満月焼き", "shape", "岐阜県関市。満月の形に由来"],
+  ["まんまる焼き", "shape", "バンダイのキャンディトイ部から発売"],
+  // 商品名や地域による名称
+  ["あじまん", "region", "山形県ほか"],
+  ["あづま焼・あずま焼き", "region", "静岡県浜松市・磐田市"],
+  ["尼い出焼き", "region", "地域の呼称"],
+  ["甘太郎焼", "region", "埼玉、千葉、神奈川、茨城、群馬前橋、東京神津島"],
+  ["あまやき", "region", "地域の呼称"],
+  ["あんこ饅頭", "region", "あんこ入り饅頭の呼称"],
+  ["今川焼き", "region", "全国各地。江戸・今川橋付近の店の宣伝に由来するとされる"],
+  ["えびす焼き", "region", "地域の呼称"],
+  ["黄金まんじゅう（黄金饅頭）", "region", "静岡県藤枝市・中部地区"],
+  ["お竹饅頭", "region", "地域の呼称"],
+  ["おやつ饅頭", "region", "地域の呼称"],
+  ["カルチャー焼", "region", "佐賀県小城市牛津町「有浦米穀店」"],
+  ["黄金焼（こがねやき）・がめこもぢ", "region", "弘前市"],
+  ["御座候", "region", "兵庫県、大阪府など全国。販売店「御座候」に由来"],
+  ["黄金（こがね）焼", "region", "神奈川県横浜市"],
+  ["暫（しばらく）", "region", "滋賀県長浜市"],
+  ["志゛まんやき（じまんやき）", "region", "富士アイス系列店（全国各地）"],
+  ["自慢焼", "region", "群馬県高崎市。富士屋の商品名"],
+  ["人工衛星饅頭", "region", "兵庫県神戸市"],
+  ["丸正まんじゅう", "region", "和歌山県和歌山市"],
+  ["ずぼら焼き", "region", "和歌山県海南市"],
+  ["大丸焼き", "region", "地域の呼称"],
+  ["大文字焼・大文字焼き", "region", "地域の呼称"],
+  ["太郎焼", "region", "埼玉県川口市・越谷市、福島県会津若松市ほか"],
+  ["ちゃっぽろ焼き", "region", "地域の呼称"],
+  ["東海道", "region", "名古屋のスーパー「ヤマナカ」での名称"],
+  ["どてきん", "region", "地域の呼称"],
+  ["どらこ焼き", "region", "地域の呼称"],
+  ["どりこの焼き", "region", "地域の呼称"],
+  ["七尾焼き", "region", "地域の呼称"],
+  ["七越（ななこし）焼き・七越まん", "region", "富山県富山市。販売店「七越」に由来"],
+  ["ぱんじゅう焼き", "region", "富山県滑川市"],
+  ["花見焼き", "region", "埼玉県蕨市"],
+  ["ひぎり焼", "region", "愛媛県松山市"],
+  ["びっくり饅頭", "region", "広島県呉市"],
+  ["ヒット焼き", "region", "愛媛県新居浜市"],
+  ["ピーパン", "region", "埼玉県"],
+  ["ふうまん（夫婦饅頭）", "region", "岡山県岡山市・倉敷市"],
+  ["蜂来饅頭", "region", "地域の呼称"],
+  ["蜂楽饅頭", "region", "熊本、鹿児島、宮崎、福岡"],
+  ["ホームラン焼き", "region", "静岡県"],
+  ["ホッペ焼き", "region", "地域の呼称"],
+  ["みかぼ焼き", "region", "神奈川県川崎市中原区新丸子町「菓心 桔梗屋」"],
+  ["めおとまんじゅう", "region", "地域の呼称"],
+  ["焼一番", "region", "地域の呼称"],
+  ["焼き饅頭", "region", "福井県"],
+  ["やなぎ饅頭", "region", "地域の呼称"],
+  ["横綱まんじゅう", "region", "岡山県津山市"],
+  ["六法焼", "region", "地域の呼称"],
+  // 追加候補（九州・博多の銘菓など）
+  ["大原松露饅頭", "extra", "大分県日田市の銘菓。薄皮の饅頭"],
+  ["博多ぶらぶら", "extra", "福岡・博多の銘菓"],
+  ["名菓ひよ子", "extra", "ひよこ形の饅頭（福岡・飯塚発祥）"],
+  ["博多の女", "extra", "博多の洋風饅頭（バウムクーヘン風生地にあんこ）"],
+  ["めんべい", "extra", "明太子風味のせんべい（福岡・福太郎）"],
+  ["筑紫もち", "extra", "きな粉と黒蜜で食べる餅菓子（福岡・如水庵）"],
+  ["梅ヶ枝餅", "extra", "太宰府名物のあんこ入り焼き餅"],
+  ["博多通りもん", "extra", "ミルク風味の白あん洋風饅頭（博多・明月堂）"],
+  // 未定義
+  ["未定義", "undef", "どの候補にも当てはまらない場合"],
+];
+
+const CAT_LABEL = { shape: "形状・製法", region: "商品・地域", extra: "追加", undef: "未定義" };
+
+const QUESTIONS = {
+  name: {
+    type: "choice",
+    instructions:
+      "入力文が指している・または描写している菓子の名称として最も適切なものを1つ選んでください。" +
+      "候補は主として今川焼き（円盤状の生地に餡を包んで焼いた菓子）の各地の呼称と、博多・九州の銘菓です。" +
+      "どの名称にも該当しないと判断した場合は「未定義」を選んでください。",
+    criteria: Object.fromEntries(CANDIDATES.map(([n, , d]) => [n, d])),
+  },
+};
+
+// ============ Endpoint init (same-origin proxy via serve.py) ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "serve.py 経由では /api/* が api.typesafe.ai にプロキシされます。直接URLにするとブラウザはCORSでブロックされます。"
+    : "file:// で開いているため直接呼び出しはCORSでブロックされます。python3 serve.py で起動してください。";
+})();
+
+// ============ Candidate list rendering ============
+(function renderCandidates() {
+  const groups = [["shape", "形状や製法に基づく名称"], ["region", "商品名や地域による名称"], ["extra", "追加"], ["undef", "その他"]];
+  $("candList").innerHTML = groups.map(([cat, label]) => {
+    const items = CANDIDATES.filter(c => c[1] === cat).map(c => `<div>${c[0]}</div>`).join("");
+    return `<h3>${label}</h3>${items}`;
+  }).join("");
+})();
+
+// ============ Live classification (debounced, latest-wins) ============
+let seq = 0;              // incremented per sent request; only the newest may render
+let inFlight = 0;
+let stale = 0, errors = 0;
+const rtts = [];          // completed request RTTs (ms)
+let debTimer = null;
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+  updateEmpty();
+});
+
+$("prompt").addEventListener("input", () => {
+  $("chars").textContent = $("prompt").value.length + " 文字";
+  updateEmpty();
+  clearTimeout(debTimer);
+  if (!$("prompt").value.trim()) { renderRanking(null); setState("待機"); return; }
+  debTimer = setTimeout(fire, DEBOUNCE_MS);
+});
+
+function updateEmpty() {
+  const es = $("emptyState");
+  if (!$("apiKey").value.trim()) es.textContent = "APIキーを入力して、お菓子の説明を書き始めてください。";
+  else if (!$("prompt").value.trim()) es.textContent = "お菓子の説明を書き始めると、リアルタイムで名称を推定します。";
+  else es.textContent = "判定中…";
+}
+
+async function fire() {
+  const text = $("prompt").value.trim();
+  const key = $("apiKey").value.trim();
+  if (!text || !key) return;
+  const mySeq = ++seq;
+  inFlight++;
+  setState(`送信中 (${inFlight})`);
+  $("errline").style.display = "none";
+
+  const payload = {
+    state: text,
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS,
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    const ms = performance.now() - t0;
+    inFlight--;
+    errors++;
+    rtts.push(ms);
+    renderStats();
+    if (mySeq === seq) {
+      $("errline").textContent = `リクエスト失敗（${ms.toFixed(0)} ms）: ${e}` +
+        (e instanceof TypeError ? " — CORSの可能性。python3 serve.py 経由で開いてください。" : "");
+      $("errline").style.display = "block";
+      setState("エラー");
+    }
+    return;
+  }
+  const ms = performance.now() - t0;
+  inFlight--;
+  rtts.push(ms);
+
+  if (mySeq !== seq) {           // a newer request was already sent → discard
+    stale++;
+    renderStats();
+    return;
+  }
+
+  let json;
+  try { json = JSON.parse(body); }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: 非JSON応答 — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+
+  if (!resp.ok || !json.answers) {
+    errors++;
+    renderStats();
+    $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
+    $("errline").style.display = "block";
+    setState("エラー");
+    return;
+  }
+
+  const ans = json.answers.name;
+  if (ans && ans.probabilities) renderRanking(ans.probabilities);
+  if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
+  setState(inFlight > 0 ? `送信中 (${inFlight})` : "完了");
+  renderStats();
+}
+
+function renderRanking(probs) {
+  const ol = $("ranking");
+  if (!probs) { ol.innerHTML = ""; $("topPick").textContent = ""; updateEmpty(); return; }
+  $("emptyState").textContent = "";
+  const top = Object.entries(probs).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const catOf = Object.fromEntries(CANDIDATES.map(([n, c]) => [n, c]));
+  $("topPick").textContent = top.length ? `第一候補: ${top[0][0]}` : "";
+  ol.innerHTML = top.map(([name, p], i) => {
+    const cat = catOf[name] || "undef";
+    return `<li style="animation-delay:${i * 22}ms">
+      <span class="rank">${i + 1}</span>
+      <span class="name">${name}<span class="tag ${cat}">${CAT_LABEL[cat]}</span></span>
+      <span class="pct">${(p * 100).toFixed(1)}%</span>
+      <span class="bar"><div style="width:${(p * 100).toFixed(1)}%"></div></span>
+    </li>`;
+  }).join("");
+}
+
+// ============ Compact stats ============
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("送信中") ? "live" : "";
+  renderStats();
+}
+
+function renderStats() {
+  $("stN").textContent = rtts.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errors;
+  if (!rtts.length) return;
+  const last = rtts[rtts.length - 1];
+  const mean = rtts.reduce((a, b) => a + b, 0) / rtts.length;
+  $("stLast").textContent = last.toFixed(0) + "ms";
+  $("stMean").textContent = mean.toFixed(0) + "ms";
+  $("stMin").textContent = Math.min(...rtts).toFixed(0) + "ms";
+  $("stMax").textContent = Math.max(...rtts).toFixed(0) + "ms";
+}
+</script>
+</body>
+</html>
