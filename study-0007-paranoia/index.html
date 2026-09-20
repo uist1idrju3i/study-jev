@@ -152,7 +152,6 @@
     border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
     border: 1px solid var(--border);
     background: #f5f3ee;
-    transition: background-color 0.7s ease, color 0.7s ease, border-color 0.7s;
   }
   #swatch {
     flex: none; width: 46px; height: 46px; border-radius: 8px;
@@ -583,11 +582,6 @@ function renderVerdict(ans) {
   document.body.style.backgroundColor = cssColor;
   document.documentElement.style.setProperty("--onbg", lum < 0.45 ? "#eae6da" : "#2b2622");
 
-  // verdict box
-  const box = $("verdictBox");
-  box.style.backgroundColor = cssColor;
-  box.style.color = lum < 0.45 ? "#f2efe6" : "#26241f";
-  box.style.borderColor = lum < 0.45 ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.18)";
   $("swatch").style.backgroundColor = c.color;
   $("clearName").textContent = `SECURITY CLEARANCE: ${c.key}`;
   $("clearJp").textContent = `${c.jp} — inferred trust color · score ${score.toFixed(2)} · audited as ${citizenClearance()}`;
