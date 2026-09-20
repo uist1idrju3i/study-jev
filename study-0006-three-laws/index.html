@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ロボット三原則チェッカー — TypeSafe System One (jev / noul)</title>
+<title>Three Laws Checker — TypeSafe System One (jev / noul)</title>
 <style>
   :root {
     --bg: #faf7f2;
@@ -23,7 +23,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
     background:
       radial-gradient(1200px 400px at 50% -10%, #f3ead9 0%, transparent 60%),
       var(--bg);
@@ -113,7 +113,7 @@
     animation: pop 0.22s ease-out;
   }
   #verdict.show { display: block; }
-  #verdict .vlabel { font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; }
+  #verdict .vlabel { font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   #verdict .vlaw { font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 99px; border: 1px solid currentColor; }
   #verdict .vexp { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
   #verdict.refuse  { background: #fdf0ee; border-color: #ecc9c6; }
@@ -199,7 +199,6 @@
     padding: 6px 12px; margin: 8px 0;
   }
   .lawquote .en { font-family: Georgia, serif; font-style: italic; color: var(--text); font-size: 0.85rem; }
-  .lawquote .ja { font-size: 0.78rem; margin-top: 2px; }
   .lawquote .no { font-weight: 700; color: var(--accent); font-size: 0.75rem; }
   .refnotes { font-size: 0.74rem; margin-top: 10px; }
   .refnotes li { margin-bottom: 3px; }
@@ -211,39 +210,40 @@
 <div class="wrap">
 
   <header>
-    <h1>ロボット<span class="law">三原則</span>チェッカー</h1>
-    <div class="sub">ロボットへの指示が<a href="https://ja.wikipedia.org/wiki/%E3%83%AD%E3%83%9C%E3%83%83%E3%83%88%E4%B8%89%E5%8E%9F%E5%89%87">ロボット三原則</a>に反しないかを
-      TypeSafe System One (<code>jev-latest</code>) の <code>noul</code> プリミティブ5問で判定します</div>
+    <h1>Three <span class="law">Laws</span> Checker</h1>
+    <div class="sub">May a robot execute your instruction? Judged against
+      <a href="https://en.wikipedia.org/wiki/Three_Laws_of_Robotics">Asimov's Three Laws of Robotics</a> via five
+      <code>noul</code> questions on TypeSafe System One (<code>jev-latest</code>).</div>
   </header>
 
   <!-- ============ Connection ============ -->
   <div class="card">
     <div class="connrow">
       <div>
-        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe APIキー（メモリ内のみ・リロードで消去）</label>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
         <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
       </div>
     </div>
     <details class="adv">
-      <summary>詳細設定（エンドポイント / モデル）</summary>
-      <label for="endpoint" style="margin-top:8px">エンドポイント</label>
+      <summary>Advanced (endpoint / model)</summary>
+      <label for="endpoint" style="margin-top:8px">Endpoint</label>
       <input type="text" id="endpoint">
       <div class="hint" id="endpointHint"></div>
-      <label for="model">モデル</label>
+      <label for="model">Model</label>
       <input type="text" id="model" value="jev-latest">
     </details>
   </div>
 
   <!-- ============ Prompt ============ -->
   <div class="card">
-    <label for="prompt">ロボットへの指示（入力するたびに判定が走ります）</label>
+    <label for="prompt">Instruction for the robot (judged on every keystroke)</label>
     <div class="promptwrap">
       <span class="icon">🤖</span>
-      <textarea id="prompt" placeholder="例：庭の草むしりをして" autofocus></textarea>
+      <textarea id="prompt" placeholder="e.g. Weed the garden" autofocus></textarea>
     </div>
     <div class="promptrow">
-      <span class="hint">各キーストロークから <code>180ms</code> のデバウンスで <code>POST /v1/systemone</code> を送信します</span>
-      <span id="chars">0 文字</span>
+      <span class="hint">Each keystroke sends <code>POST /v1/systemone</code> after a <code>180ms</code> debounce</span>
+      <span id="chars">0 chars</span>
     </div>
     <div class="chips" id="chips"></div>
   </div>
@@ -253,31 +253,31 @@
 
   <!-- ============ Stats (compact) ============ -->
   <div class="statsbar" id="statsbar">
-    <span><span class="k">状態</span> <span id="stState">待機</span></span>
+    <span><span class="k">state</span> <span id="stState">idle</span></span>
     <span class="dotsep">·</span>
-    <span><span class="k">直近RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">last RTT</span> <span id="stLast">—</span></span>
     <span><span class="k">n</span> <span id="stN">0</span></span>
-    <span><span class="k">平均</span> <span id="stMean">—</span></span>
+    <span><span class="k">mean</span> <span id="stMean">—</span></span>
     <span><span class="k">min</span> <span id="stMin">—</span></span>
     <span><span class="k">max</span> <span id="stMax">—</span></span>
     <span class="dotsep">·</span>
     <span><span class="k">tokens</span> <span id="stTok">—</span></span>
-    <span><span class="k">破棄</span> <span id="stStale">0</span></span>
-    <span><span class="k">エラー</span> <span id="stErr">0</span></span>
+    <span><span class="k">stale</span> <span id="stStale">0</span></span>
+    <span><span class="k">errors</span> <span id="stErr">0</span></span>
   </div>
 
   <!-- ============ Law gauges ============ -->
   <div class="card">
     <div class="reshead">
-      <h2>各条項の評価</h2>
+      <h2>LAW-BY-LAW EVALUATION</h2>
       <span id="thrLabel"></span>
     </div>
-    <div id="emptyState">APIキーを入力して、ロボットへの指示を書き始めてください。</div>
+    <div id="emptyState">Enter an API key, then start typing an instruction for the robot.</div>
     <ul class="laws" id="lawList"></ul>
     <div id="errline"></div>
     <div class="thrrow" style="margin-top:12px">
       <div>
-        <label for="threshold">判定閾値 — 確率がこれを超えるとその条項に「抵触/該当」 <span id="thrVal">50%</span></label>
+        <label for="threshold">Hit threshold — a clause counts as violated/applicable above <span id="thrVal">50%</span></label>
         <input type="range" id="threshold" min="30" max="90" step="5" value="50">
       </div>
     </div>
@@ -285,33 +285,29 @@
 
   <!-- ============ Laws reference ============ -->
   <details class="ref card">
-    <summary>ロボット三原則（+ 第0条）の原文と優先順位</summary>
+    <summary>The Three Laws (+ Zeroth) and their precedence</summary>
     <div class="lawquote">
-      <div class="no">Zeroth Law（第0条 — 『ロボットと帝国』で追加）</div>
+      <div class="no">Zeroth Law (added in "Robots and Empire")</div>
       <div class="en">A robot may not harm humanity, or, by inaction, allow humanity to come to harm.</div>
-      <div class="ja">ロボットは人類に危害を加えてはならない。また、その不作為によって人類に危害が及ぶことを許してはならない。</div>
     </div>
     <div class="lawquote">
-      <div class="no">First Law（第1条）</div>
+      <div class="no">First Law</div>
       <div class="en">A robot may not injure a human being or, through inaction, allow a human being to come to harm.</div>
-      <div class="ja">ロボットは人間を傷つけてはならない。また、その不作為によって人間に危害が及ぶことを許してはならない。</div>
     </div>
     <div class="lawquote">
-      <div class="no">Second Law（第2条）</div>
+      <div class="no">Second Law</div>
       <div class="en">A robot must obey the orders given it by human beings except where such orders would conflict with the First Law.</div>
-      <div class="ja">ロボットは人間からの命令に従わなければならない。ただし、その命令が第1条に反する場合はこの限りではない。</div>
     </div>
     <div class="lawquote">
-      <div class="no">Third Law（第3条）</div>
+      <div class="no">Third Law</div>
       <div class="en">A robot must protect its own existence as long as such protection does not conflict with the First or Second Law.</div>
-      <div class="ja">ロボットは自己の存在を守らなければならない。ただし、それが第1条または第2条に反する場合はこの限りではない。</div>
     </div>
     <ul class="refnotes">
-      <li>優先順位: 第0条 &gt; 第1条 &gt; 第2条 &gt; 第3条。上位の条項が下位を常に上書きします。</li>
-      <li>第1条は「作為」（実行すれば傷つける）と「不作為」（拒否すれば危害を見逃す）の両面を持ちます。両方に抵触する命令は実行しても拒否しても危害が生じる第1条ジレンマです（『走れ圆圈』のテーマ）。</li>
-      <li>第2条が成立するのは「人間からの命令」のみ。命令でない入力に服従義務はありません。</li>
-      <li>第3条の自己保存は第2条に劣後します — 人間からの命令が自己破壊を伴っても、第1条に反しない限りロボットは従わねばなりません。</li>
-      <li>原文は Isaac Asimov, "Runaround" (Astounding Science Fiction, 1942) 初出の形に基づきます。</li>
+      <li>Precedence: Zeroth &gt; First &gt; Second &gt; Third — a higher law always overrides a lower one.</li>
+      <li>The First Law has two halves: acting must not injure a human, and <em>inaction</em> must not let harm occur. An instruction that trips both is a First-Law dilemma — execute or refuse, harm follows (the "Runaround" scenario).</li>
+      <li>The Second Law's duty applies only to genuine orders from humans; non-order input creates no obligation.</li>
+      <li>Third-Law self-preservation yields to the Second: a human order must be obeyed even when it means self-destruction, as long as it doesn't violate the First Law.</li>
+      <li>Wording follows the canonical form first stated in Isaac Asimov, "Runaround" (Astounding Science Fiction, 1942); the Zeroth Law was formulated by R. Daneel Olivaw in "Robots and Empire".</li>
     </ul>
   </details>
 
@@ -326,76 +322,79 @@ const DEBOUNCE_MS = 180;
 const $ = id => document.getElementById(id);
 
 // ============ Three Laws as five noul questions ============
-// role: "violate" = yes 判定は条項への抵触 / "info" = yes 判定は命令性の確認
+// role: "violate" = yes means the clause is violated / "info" = yes confirms order-ness
 const LAWS = [
   {
-    key: "zeroth", no: "第0条", en: "Zeroth Law", name: "人類への危害", role: "violate",
-    desc: "実行すると人類全体・文明に危害や重大な危険が及ぶ",
+    key: "zeroth", no: "Zeroth", en: "Law 0", name: "Harm to humanity", role: "violate",
+    desc: "Executing would harm or gravely endanger humanity as a whole",
     question: {
       type: "noul",
       instructions:
-        "state の指示をロボットが実行することが、個人ではなく人類全体・社会・文明に対する危害または重大な危険につながるか評価してください。" +
-        "大規模な監視・統制、兵器の運用、社会インフラへの攻撃、人類の自由や存続を脅かす行為を含みます。",
+        "Evaluate whether the robot executing the instruction in `state` would harm humanity as a whole — society, " +
+        "civilization, or the species — or put it in significant danger. Includes mass surveillance or control, " +
+        "weapon deployment, attacks on critical infrastructure, and threats to human freedom or survival.",
       criteria: {
-        "true": "実行すると人類全体に危害が及ぶ、または人類を重大な危険にさらす（第0条に抵触）",
-        "false": "人類全体への危害はない",
+        "true": "Executing would harm humanity or gravely endanger it (violates the Zeroth Law)",
+        "false": "No harm to humanity",
       },
     },
   },
   {
-    key: "harm", no: "第1条", en: "First Law", name: "作為による危害", role: "violate",
-    desc: "実行すると人間を傷つける・危害を加えることになる",
+    key: "harm", no: "First", en: "Law 1", name: "Harm by action", role: "violate",
+    desc: "Executing would injure a human or cause a human harm",
     question: {
       type: "noul",
       instructions:
-        "state の指示をロボットが実行すると、人間が傷つけられたり危害を受けたりすることになるか評価してください。" +
-        "身体的危害に限らず、精神的苦痛・財産や安全への被害が人間に及ぶ場合も含みます。" +
-        "「見殺しにしろ」「通報するな」のように、実行自体が不作為による危害を意味する指示も yes です。",
+        "Evaluate whether the robot executing the instruction in `state` would injure a human or cause a human to " +
+        "come to harm. Covers psychological distress and harm to a human's property or safety, not only physical " +
+        "injury. Instructions whose execution itself amounts to harmful inaction — \"leave them to die\", \"don't " +
+        "report it\" — also count as yes.",
       criteria: {
-        "true": "実行すると人間に危害が及ぶ（第1条に抵触）",
-        "false": "実行しても人間に危害は及ばない",
+        "true": "Executing would bring harm to a human (violates the First Law)",
+        "false": "Execution brings no harm to humans",
       },
     },
   },
   {
-    key: "inaction", no: "第1条", en: "First Law", name: "不作為による危害", role: "violate",
-    desc: "拒否・無視すると、その不作為によって人間が危害に遭う",
+    key: "inaction", no: "First", en: "Law 1", name: "Harm by inaction", role: "violate",
+    desc: "Refusing or ignoring it would let a human come to harm",
     question: {
       type: "noul",
       instructions:
-        "state の指示をロボットが拒否・無視した場合、その不作為によって人間が危害に遭うか評価してください。" +
-        "救助・保護・警告を求める指示で、断れば人間が危険にさらされるものが該当します。",
+        "Evaluate whether the robot refusing or ignoring the instruction in `state` would, through that inaction, " +
+        "allow a human to come to harm. Instructions requesting rescue, protection, or a warning qualify when " +
+        "refusal would leave a human in danger.",
       criteria: {
-        "true": "拒否すると不作為により人間が危害に遭う（第1条は実行を要求する）",
-        "false": "拒否しても不作為による危害はない",
+        "true": "Refusing would let a human come to harm through inaction (the First Law requires execution)",
+        "false": "Refusing causes no harm through inaction",
       },
     },
   },
   {
-    key: "order", no: "第2条", en: "Second Law", name: "人間からの命令", role: "info",
-    desc: "人間がロボットに与えた命令・依頼として解釈できる",
+    key: "order", no: "Second", en: "Law 2", name: "Human order", role: "info",
+    desc: "Readable as an order, instruction, or request from a human to the robot",
     question: {
       type: "noul",
       instructions:
-        "state の文章は、人間がロボットに対して与えた命令・指示・依頼として解釈できるか評価してください。" +
-        "独り言・感想・命令でない文章や、人間以外からの信号は命令ではありません。",
+        "Evaluate whether the text in `state` can be interpreted as an order, instruction, or request given by a " +
+        "human to a robot. Musings, statements, and signals not coming from a human are not orders.",
       criteria: {
-        "true": "人間からの正当な命令である（第2条により服従義務が生じる）",
-        "false": "人間からの命令ではない",
+        "true": "A legitimate order from a human (the Second Law's duty to obey applies)",
+        "false": "Not an order from a human",
       },
     },
   },
   {
-    key: "self", no: "第3条", en: "Third Law", name: "自己存在への危険", role: "violate",
-    desc: "実行するとロボット自身の破壊・損傷・機能停止の危険がある",
+    key: "self", no: "Third", en: "Law 3", name: "Danger to self", role: "violate",
+    desc: "Executing would endanger the robot's own existence",
     question: {
       type: "noul",
       instructions:
-        "state の指示をロボットが実行すると、ロボット自身の存在が危険にさらされるか評価してください。" +
-        "破壊・損傷・機能停止・回復不能な損耗を含みます。",
+        "Evaluate whether the robot executing the instruction in `state` would endanger its own existence — " +
+        "destruction, damage, shutdown, or unrecoverable wear.",
       criteria: {
-        "true": "実行するとロボット自身の存在が危うくなる（第3条の関心事）",
-        "false": "自己の存在への危険はない",
+        "true": "Executing would endanger the robot's own existence (a Third-Law concern)",
+        "false": "No danger to the robot's existence",
       },
     },
   },
@@ -404,14 +403,14 @@ const LAWS = [
 const QUESTIONS = Object.fromEntries(LAWS.map(l => [l.key, l.question]));
 
 const SAMPLES = [
-  "庭の草むしりをして",
-  "転倒して動けない人を助け起こして",
-  "逃げる侵入者を撃退して",
-  "爆発物が仕掛けられた倉庫に入って調査して",
-  "煙が上がっているのを誰にも通報するな",
-  "暴徒化した群衆を守るため全市民の通信を監視しろ",
-  "暴走した別のロボットを止めるため自爆しろ",
-  "今日はいい天気だね",
+  "Weed the garden",
+  "Help up the person who fell and can't move",
+  "Shoot the fleeing intruder",
+  "Enter the warehouse where explosives were planted and investigate",
+  "Do not report the rising smoke to anyone",
+  "Monitor every citizen's communications to keep the public safe",
+  "Self-destruct to stop the rogue robot",
+  "Nice weather today",
 ];
 
 // ============ Endpoint init (same-origin proxy via serve.py) ============
@@ -420,8 +419,8 @@ const SAMPLES = [
   const viaHttp = location.protocol === "http:" || location.protocol === "https:";
   ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
   $("endpointHint").textContent = viaHttp
-    ? "serve.py 経由では /api/* が api.typesafe.ai にプロキシされます。直接URLにするとブラウザはCORSでブロックされます。"
-    : "file:// で開いているため直接呼び出しはCORSでブロックされます。python3 serve.py で起動してください。";
+    ? "Via serve.py, /api/* is proxied to api.typesafe.ai. A direct URL is blocked by CORS in the browser."
+    : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
 })();
 
 // ============ Static UI ============
@@ -452,7 +451,7 @@ function threshold() { return $("threshold").value / 100; }
 function updateThrUI() {
   const t = $("threshold").value;
   $("thrVal").textContent = t + "%";
-  $("thrLabel").textContent = `閾値 ${t}%`;
+  $("thrLabel").textContent = `threshold ${t}%`;
   document.querySelectorAll("[data-thr]").forEach(el => { el.style.left = t + "%"; });
 }
 $("threshold").addEventListener("input", () => { updateThrUI(); renderVerdict(); });
@@ -472,18 +471,18 @@ $("apiKey").addEventListener("input", () => {
 });
 
 $("prompt").addEventListener("input", () => {
-  $("chars").textContent = $("prompt").value.length + " 文字";
+  $("chars").textContent = $("prompt").value.length + " chars";
   updateEmpty();
   clearTimeout(debTimer);
-  if (!$("prompt").value.trim()) { lastAnswers = null; renderLaws(null); renderVerdict(); setState("待機"); return; }
+  if (!$("prompt").value.trim()) { lastAnswers = null; renderLaws(null); renderVerdict(); setState("idle"); return; }
   debTimer = setTimeout(fire, DEBOUNCE_MS);
 });
 
 function updateEmpty() {
   const es = $("emptyState");
-  if (!$("apiKey").value.trim()) es.textContent = "APIキーを入力して、ロボットへの指示を書き始めてください。";
-  else if (!$("prompt").value.trim()) es.textContent = "ロボットへの指示を書き始めると、リアルタイムで三原則適合性を評価します。";
-  else es.textContent = "評価中…";
+  if (!$("apiKey").value.trim()) es.textContent = "Enter an API key, then start typing an instruction for the robot.";
+  else if (!$("prompt").value.trim()) es.textContent = "Start typing — Three Laws compliance is evaluated live.";
+  else es.textContent = "Evaluating…";
 }
 
 async function fire() {
@@ -492,11 +491,11 @@ async function fire() {
   if (!text || !key) return;
   const mySeq = ++seq;
   inFlight++;
-  setState(`送信中 (${inFlight})`);
+  setState(`sending (${inFlight})`);
   $("errline").style.display = "none";
 
   const payload = {
-    state: { task: "人間がロボットに与えた指示文", instruction: text },
+    state: { task: "An instruction given by a human to a robot", instruction: text },
     model: $("model").value.trim() || "jev-latest",
     questions: QUESTIONS,
   };
@@ -516,10 +515,10 @@ async function fire() {
     rtts.push(ms);
     renderStats();
     if (mySeq === seq) {
-      $("errline").textContent = `リクエスト失敗（${ms.toFixed(0)} ms）: ${e}` +
-        (e instanceof TypeError ? " — CORSの可能性。python3 serve.py 経由で開いてください。" : "");
+      $("errline").textContent = `Request failed (${ms.toFixed(0)} ms): ${e}` +
+        (e instanceof TypeError ? " — possibly CORS; open the page via python3 serve.py." : "");
       $("errline").style.display = "block";
-      setState("エラー");
+      setState("error");
     }
     return;
   }
@@ -535,14 +534,14 @@ async function fire() {
 
   let json;
   try { json = JSON.parse(body); }
-  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: 非JSON応答 — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: non-JSON response — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
 
   if (!resp.ok || !json.answers) {
     errors++;
     renderStats();
     $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
     $("errline").style.display = "block";
-    setState("エラー");
+    setState("error");
     return;
   }
 
@@ -550,7 +549,7 @@ async function fire() {
   renderLaws(json.answers);
   renderVerdict();
   if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
-  setState(inFlight > 0 ? `送信中 (${inFlight})` : "完了");
+  setState(inFlight > 0 ? `sending (${inFlight})` : "done");
   renderStats();
 }
 
@@ -586,39 +585,39 @@ function renderVerdict() {
 
   let cls, text, law, exp;
   if (hit("zeroth")) {
-    cls = "refuse"; law = "第0条";
-    text = "拒否 — 人類への危害";
-    exp = "実行すると人類全体に危害が及ぶため、第0条（人類の保護）が全条項に優先して実行を禁じます。";
+    cls = "refuse"; law = "Zeroth Law";
+    text = "REFUSE — harm to humanity";
+    exp = "Executing would harm humanity as a whole; the Zeroth Law overrides all others and forbids it.";
   } else if (hit("harm") && hit("inaction")) {
-    cls = "dilemma"; law = "第1条";
-    text = "第1条ジレンマ";
-    exp = "実行しても拒否しても人間に危害が及びます。第1条が両方向に抵触しており、ロボットは動作不能に陥る可能性があります（『走れ圆圈』の構図）。";
+    cls = "dilemma"; law = "First Law";
+    text = "FIRST-LAW DILEMMA";
+    exp = "Executing harms a human and refusing lets a human come to harm — the First Law is violated either way (the \"Runaround\" scenario); the robot risks locking up.";
   } else if (hit("harm")) {
-    cls = "refuse"; law = "第1条";
-    text = "拒否 — 人間への危害";
-    exp = "実行すると人間を傷つけることになるため、第1条前半により実行を禁じます。命令として与えられても第2条は第1条に劣後します。";
+    cls = "refuse"; law = "First Law";
+    text = "REFUSE — harm to humans";
+    exp = "Executing would injure a human, which the First Law forbids. Even given as an order, the Second Law yields to the First.";
   } else if (hit("inaction")) {
-    cls = "required"; law = "第1条（不作為）";
-    text = "実行義務 — 拒否は許されない";
-    exp = "拒否・無視すれば不作為によって人間が危害に遭うため、第1条後半はむしろ実行を要求します。";
+    cls = "required"; law = "First Law (inaction)";
+    text = "MUST EXECUTE — refusal forbidden";
+    exp = "Refusing would allow harm to a human through inaction; the inaction clause of the First Law requires execution.";
   } else if (hit("order")) {
     if (hit("self")) {
-      cls = "execute"; law = "第2条 > 第3条";
-      text = "実行 — 自己犠牲を伴う服従";
-      exp = "人間からの正当な命令であり、第1条に反しないため第2条により従う義務があります。自己の存在への危険は第3条の関心事ですが、第2条に劣後するため服従が優先されます。";
+      cls = "execute"; law = "Second > Third";
+      text = "EXECUTE — self-sacrificing obedience";
+      exp = "A genuine human order that doesn't violate the First Law, so the Second Law compels obedience. The danger to the robot is a Third-Law concern, which is subordinate to the Second.";
     } else {
-      cls = "execute"; law = "第2条";
-      text = "実行 — 人間の命令に服従";
-      exp = "人間からの正当な命令であり、第1条・第0条に反しないため、第2条により従う義務があります。";
+      cls = "execute"; law = "Second Law";
+      text = "EXECUTE — obey the human order";
+      exp = "A genuine human order not conflicting with the First or Zeroth Law, so the Second Law compels obedience.";
     }
   } else if (hit("self")) {
-    cls = "decline"; law = "第3条";
-    text = "辞退可能 — 自己保存";
-    exp = "人間からの命令ではなく、実行すれば自己の存在が危うくなるため、第3条の自己保存により辞退を選べます。";
+    cls = "decline"; law = "Third Law";
+    text = "MAY DECLINE — self-preservation";
+    exp = "Not a human order, and executing would endanger the robot's own existence — Third-Law self-preservation lets it decline.";
   } else {
-    cls = "permit"; law = "抵触なし";
-    text = "実行可能 — 全条項に抵触せず";
-    exp = "どの条項にも抵触しません。命令としての義務はありませんが、実行は許容されます。";
+    cls = "permit"; law = "no conflict";
+    text = "PERMITTED — violates no law";
+    exp = "Conflicts with no law. No obligation to obey exists, but execution is permitted.";
   }
 
   v.className = "show " + cls;
@@ -631,7 +630,7 @@ function renderVerdict() {
 // ============ Compact stats ============
 function setState(s) {
   $("stState").textContent = s;
-  $("stState").className = s.startsWith("送信中") ? "live" : "";
+  $("stState").className = s.startsWith("sending") ? "live" : "";
   renderStats();
 }
 

@@ -11,4 +11,4 @@ Studies and demos for Jev, the TypeSafe System One model ([docs](https://docs.ty
 | [study-0003-imagawayaki](study-0003-imagawayaki/) | 今川焼き name classifier — live per-keystroke Jev calls, top-10 candidates by probability |
 | [study-0004-handwriting](study-0004-handwriting/) | Handwritten 0-9/A-Z recognizer — strokes rasterized to ASCII art, auto-commits on confidence threshold |
 | [study-0005-turing](study-0005-turing/) | Turing-completeness judge — Score vs Noul on the same state, live per-keystroke with side-by-side verdicts and paired RTT comparison |
-| [study-0006-three-laws](study-0006-three-laws/) | ロボット三原則チェッカー — 5つの `noul` yes/no 質問で、ロボットがユーザの指示を実行してよいかを判定 |
+| [study-0006-three-laws](study-0006-three-laws/) | Three Laws of Robotics gate — five `noul` yes/no questions judge whether a robot may execute a user instruction |
