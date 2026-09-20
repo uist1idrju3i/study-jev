@@ -25,13 +25,12 @@ citizen of Alpha Complex.
   secret-society sympathy, unhappiness, above-clearance knowledge) up to
   *Exemplary* (praising The Computer, reporting traitors). The answer's `score`,
   `confidence` and per-level `probabilities` drive the whole UI.
-- **Clearance-colored background** — the fractional score is interpolated
-  across PARANOIA's nine security clearances
-  (INFRARED black → RED → ORANGE → YELLOW → GREEN → BLUE → INDIGO → VIOLET →
-  ULTRAVIOLET white) and applied to the page background, a spectrum strip and
-  a color swatch — the verdict box itself stays neutral. In the fiction,
-  clearance is exactly "how much The Computer trusts you". Page text flips
-  light/dark for contrast.
+- **Clearance-colored background, trust-colored score** — the page background
+  takes YOUR clearance's color (clearance is "how much Friend Computer trusts
+  you"), while the fractional score renders as a plain 0–1 bar whose fill —
+  plus the verdict swatch — interpolates the nine clearance colors
+  (INFRARED black → … → ULTRAVIOLET white). The verdict box itself stays
+  neutral. Page text flips light/dark for contrast.
 - **INFRARED-rated controls / ULTRAVIOLET-rated settings** — the citizen's
   utterance terminal is black, because white panels would be ULTRAVIOLET
   equipment that lower clearances may not legally touch. The configuration
@@ -50,8 +49,8 @@ citizen of Alpha Complex.
   star to your loyalty rating, matching the tabletop rule. Five stars trigger a
   full-screen TERMINATED flash and the count resets.
 - **The Computer's eye opens with danger** — an SVG eye in the verdict panel
-  opens wider as the score drops (contented citizens barely warrant attention);
-  eyelid aperture is driven continuously by the fractional score.
+  opens wider as the score drops and can shut completely for exemplary
+  citizens; eyelid aperture is driven continuously by the fractional score.
 - **ZAP + clone delivery** — an INFRARED-band verdict fires a full-screen
   ⚡ZAP⚡, blanks the utterance box, and delivers the next clone citizen
   (the prompt card re-materializes with a delivery animation). Clone stock is
