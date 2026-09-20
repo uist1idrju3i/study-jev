@@ -673,8 +673,8 @@ function renderVerdict(ans) {
   box.style.color = lum < 0.45 ? "#f2efe6" : "#26241f";
   box.style.borderColor = lum < 0.45 ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.18)";
   $("swatch").style.backgroundColor = c.color;
-  $("clearName").textContent = `SECURITY CLEARANCE: ${c.key}`;
-  $("clearJp").textContent = `${c.jp} — inferred trust color · score ${score.toFixed(2)} · audited as ${citizenClearance()}`;
+  $("clearName").textContent = `TRUST INDEX: ${c.key}`;
+  $("clearJp").textContent = `${c.jp} — trust color · score ${score.toFixed(2)} · citizen clearance ${citizenClearance()}`;
   $("verdict").textContent = c.verdict.replaceAll("{c}", citizenClearance());
   $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
 
