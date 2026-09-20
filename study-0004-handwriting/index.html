@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handwriting Classifier — TypeSafe System One (jev)</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --border: #e6dfd4;
+    --text: #2b2622;
+    --muted: #8a8177;
+    --accent: #a03c4b;
+    --accent-soft: #f4e3e6;
+    --gold: #b98a2f;
+    --ok: #2e7d4f;
+    --err: #c0453e;
+    --ink: #26221e;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
+    background:
+      radial-gradient(1200px 400px at 50% -10%, #f3ead9 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; }
+  h1 .pen { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.82rem; }
+  .sub code { font-family: var(--mono); font-size: 0.9em; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+
+  /* ---- connection ---- */
+  .connrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .connrow > div { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password] {
+    width: 100%;
+    background: #fdfbf8;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(160, 60, 75, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8cfc0; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--accent); }
+
+  /* ---- drawing pad ---- */
+  .padhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .padhead h2, .reshead h2, .outhead h2 {
+    font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em;
+  }
+  .padbtns { display: flex; gap: 8px; }
+  button {
+    font: inherit; font-size: 0.75rem; font-weight: 600;
+    color: var(--text); background: #fdfbf8;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 14px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #8c3542; }
+
+  .padwrap { display: flex; justify-content: center; }
+  #pad {
+    width: 300px; height: 300px;
+    background:
+      linear-gradient(#f6f1e8 1px, transparent 1px) 0 0 / 100% 25%,
+      linear-gradient(90deg, #f6f1e8 1px, transparent 1px) 0 0 / 25% 100%,
+      #fffdf9;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: crosshair;
+    touch-action: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #pad.flash-ok { border-color: var(--ok); box-shadow: 0 0 0 4px rgba(46, 125, 79, 0.18); }
+  #pad.flash-low { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(185, 138, 47, 0.15); }
+
+  .padctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+  .padctl > div { flex: 1; min-width: 200px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #thrVal { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f1ece2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+
+  /* ---- recognized output ---- */
+  .outhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .outbtns { display: flex; gap: 8px; }
+  #committed {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    letter-spacing: 0.35em;
+    min-height: 44px;
+    padding: 8px 14px;
+    background: #fdfbf8;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    word-break: break-all;
+  }
+  #committed .placeholder { color: #c8bfae; font-size: 0.85rem; letter-spacing: 0.02em; font-family: inherit; }
+  #committed .new { animation: pop 0.25s ease-out; color: var(--accent); }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px) scale(1.3); } to { opacity: 1; transform: none; } }
+
+  /* ---- results ---- */
+  .reshead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  #topPick { font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+  ol.ranking { list-style: none; margin: 0; padding: 0; }
+  ol.ranking li {
+    display: grid;
+    grid-template-columns: 26px 1fr auto;
+    grid-template-areas: "rank name pct" "rank bar bar";
+    align-items: center;
+    column-gap: 10px;
+    padding: 6px 4px;
+    border-bottom: 1px solid #f2ede3;
+    opacity: 0;
+    animation: pop 0.18s ease-out forwards;
+  }
+  ol.ranking li:last-child { border-bottom: none; }
+  .rank { grid-area: rank; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-align: center; }
+  ol.ranking li:nth-child(1) .rank { color: var(--accent); font-weight: 700; }
+  .name { grid-area: name; font-family: var(--mono); font-size: 1rem; font-weight: 700; }
+  .pct { grid-area: pct; font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+  .bar { grid-area: bar; height: 5px; background: #f1ece2; border-radius: 3px; overflow: hidden; margin-top: 3px; position: relative; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), #c46a77); border-radius: 3px; transition: width 0.25s ease; }
+  ol.ranking li.below .bar > div { background: #cdbfae; }
+  ol.ranking li.below .pct, ol.ranking li.below .name { color: var(--muted); font-weight: 500; }
+  #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+
+  /* ---- stats bar ---- */
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b0a693; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd2c0; }
+
+  /* ---- ascii preview ---- */
+  details.preview { font-size: 0.78rem; color: var(--muted); }
+  details.preview summary { cursor: pointer; user-select: none; font-size: 0.78rem; }
+  details.preview summary:hover { color: var(--accent); }
+  #ascii {
+    font-family: var(--mono);
+    font-size: 9px;
+    line-height: 1.05;
+    letter-spacing: 0;
+    white-space: pre;
+    background: #26221e;
+    color: #e8dfd0;
+    border-radius: 8px;
+    padding: 12px;
+    overflow: auto;
+    margin-top: 8px;
+  }
+
+  footer { text-align: center; font-size: 0.7rem; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Handwriting <span class="pen">Classifier</span></h1>
+    <div class="sub">Draw a character — <code>0-9</code> or <code>A-Z</code>. Strokes are rasterized to ASCII art and judged by
+      TypeSafe System One (<code>jev-latest</code>). The character commits when the top probability clears the threshold.</div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <div class="connrow">
+      <div>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+      </div>
+    </div>
+    <details class="adv">
+      <summary>Advanced (endpoint / model)</summary>
+      <label for="endpoint" style="margin-top:8px">Endpoint</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">Model</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Drawing pad ============ -->
+  <div class="card">
+    <div class="padhead">
+      <h2>DRAWING PAD</h2>
+      <div class="padbtns">
+        <button id="btnRecognize" class="primary">Recognize</button>
+        <button id="btnClear">Clear pad</button>
+      </div>
+    </div>
+    <div class="padwrap"><canvas id="pad"></canvas></div>
+    <div class="padctl">
+      <div>
+        <label for="threshold">Commit threshold — top probability must reach <span id="thrVal">60%</span></label>
+        <input type="range" id="threshold" min="10" max="95" step="5" value="60">
+      </div>
+    </div>
+    <div class="hint" style="margin-top:6px">
+      Classification fires <code>650 ms</code> after you lift the pen. Multi-stroke characters are fine —
+      keep the next stroke inside that window. Below-threshold results stay on the pad so you can add strokes.
+    </div>
+  </div>
+
+  <!-- ============ Recognized text ============ -->
+  <div class="card">
+    <div class="outhead">
+      <h2>RECOGNIZED TEXT</h2>
+      <div class="outbtns">
+        <button id="btnBack">⌫ Backspace</button>
+        <button id="btnCopy">Copy</button>
+        <button id="btnClearText">Clear</button>
+      </div>
+    </div>
+    <div id="committed"><span class="placeholder">Committed characters appear here.</span></div>
+  </div>
+
+  <!-- ============ Stats (compact) ============ -->
+  <div class="statsbar" id="statsbar">
+    <span><span class="k">state</span> <span id="stState">idle</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">last RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">n</span> <span id="stN">0</span></span>
+    <span><span class="k">mean</span> <span id="stMean">—</span></span>
+    <span><span class="k">min</span> <span id="stMin">—</span></span>
+    <span><span class="k">max</span> <span id="stMax">—</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">tokens</span> <span id="stTok">—</span></span>
+    <span><span class="k">stale</span> <span id="stStale">0</span></span>
+    <span><span class="k">errors</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Results ============ -->
+  <div class="card">
+    <div class="reshead">
+      <h2>TOP 10 CANDIDATES</h2>
+      <span id="topPick"></span>
+    </div>
+    <div id="emptyState">Enter an API key, then draw a character on the pad.</div>
+    <ol class="ranking" id="ranking"></ol>
+    <div id="errline"></div>
+  </div>
+
+  <!-- ============ ASCII preview ============ -->
+  <details class="preview card">
+    <summary>Show the ASCII-art state sent to Jev</summary>
+    <pre id="ascii">(draw something first)</pre>
+  </details>
+
+  <footer>study-0004-handwriting — based on study-0003-imagawayaki · TypeSafe System One API</footer>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const CLASSIFY_DELAY_MS = 650;
+const GRID = 24;          // ASCII grid is GRID x GRID
+const BLOCK = 4;          // work canvas is GRID*BLOCK px per side
+const INK_FRACTION = 0.2; // a cell is '#' when >=20% of its BLOCK² pixels are ink
+const PAD_PX = 300;
+const $ = id => document.getElementById(id);
+
+// ============ Candidates: 36 chars with disambiguation hints ============
+const CRITERIA = {
+  "0": "Digit zero — closed oval, typically narrower and more oval than the letter O; may contain a slash or dot",
+  "1": "Digit one — mainly a single vertical stroke, often with a small diagonal flag at the top and/or a flat foot; no full top+bottom caps like letter I",
+  "2": "Digit two — curved top, diagonal sweep down to the lower left, flat horizontal base",
+  "3": "Digit three — two stacked right-facing semicircles, open on the left",
+  "4": "Digit four — open top, right vertical stroke crossed by a horizontal bar, diagonal left side",
+  "5": "Digit five — flat top bar, short vertical down the left, then a rounded lower bowl; sharper than letter S",
+  "6": "Digit six — closed lower loop with a stem curving up from its upper left",
+  "7": "Digit seven — horizontal top bar with a diagonal descending to the lower left; no closed loop, no vertical center stem like T",
+  "8": "Digit eight — two stacked closed loops, the upper usually smaller",
+  "9": "Digit nine — closed upper loop with a stem descending on the right",
+  "A": "Capital A — two diagonals meeting in a peak, joined by a horizontal crossbar",
+  "B": "Capital B — vertical left stem with two right-facing closed bowls",
+  "C": "Capital C — open curve, like a circle with the right side missing; no inner strokes",
+  "D": "Capital D — vertical left stem with one large right-facing bowl",
+  "E": "Capital E — vertical left stem with three horizontal bars (top, middle, bottom)",
+  "F": "Capital F — vertical left stem with two horizontal bars (top, middle); no bottom bar",
+  "G": "Capital G — large C-like curve plus a short horizontal bar or notch on the right",
+  "H": "Capital H — two vertical stems joined by a middle horizontal bar",
+  "I": "Capital I — vertical stem with clear horizontal caps at top and bottom; plainer single strokes are more likely digit 1",
+  "J": "Capital J — stem descending then hooking left at the bottom; often no top bar",
+  "K": "Capital K — vertical left stem with two diagonals meeting at its middle",
+  "L": "Capital L — vertical stem with a single horizontal foot at the bottom",
+  "M": "Capital M — two outer verticals with a V-shaped dip between them",
+  "N": "Capital N — two vertical stems joined by a diagonal",
+  "O": "Capital O — closed round oval, usually wider and rounder than digit zero",
+  "P": "Capital P — vertical stem with one closed bowl on the upper half",
+  "Q": "Capital Q — closed oval like O plus a small tail at the lower right",
+  "R": "Capital R — vertical stem, upper closed bowl, and a diagonal leg to the lower right",
+  "S": "Capital S — smooth continuous double curve; no flat top bar like digit 5",
+  "T": "Capital T — horizontal top bar centered on a vertical stem; a diagonal drop from the top bar suggests digit 7",
+  "U": "Capital U — two verticals joined by a rounded bottom",
+  "V": "Capital V — two diagonals meeting in a point at the bottom",
+  "W": "Capital W — four diagonals, like two joined Vs",
+  "X": "Capital X — two diagonals crossing at the center",
+  "Y": "Capital Y — two diagonals meeting mid-height into a single vertical stem",
+  "Z": "Capital Z — top and bottom horizontal bars joined by a diagonal; sharper and more angular than digit 2",
+};
+
+const QUESTIONS = {
+  char: {
+    type: "choice",
+    instructions:
+      "Look at `drawing` — a 24x24 ASCII rasterization of a single handwritten character, " +
+      "where '#' marks ink and '.' marks blank canvas. It was drawn freehand with a pen. " +
+      "Which character does it most likely depict? Judge by overall shape, loops, and stroke layout, " +
+      "and use the per-candidate hints to resolve confusable pairs (0/O, 1/I, 2/Z, 5/S, 6/G, 8/B, 7/T).",
+    criteria: CRITERIA,
+  },
+};
+
+// ============ Endpoint init (same-origin proxy via serve.py) ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "Via serve.py, /api/* is proxied to api.typesafe.ai. A direct URL is blocked by CORS in the browser."
+    : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
+})();
+
+// ============ Drawing pad (pointer events) ============
+const pad = $("pad");
+const ctx = pad.getContext("2d");
+const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+pad.width = PAD_PX * DPR;
+pad.height = PAD_PX * DPR;
+ctx.scale(DPR, DPR);
+ctx.lineWidth = 16;
+ctx.lineCap = "round";
+ctx.lineJoin = "round";
+ctx.strokeStyle = "#26221e";
+
+let drawing = false;
+let hasInk = false;
+let debTimer = null;
+
+function padPos(e) {
+  const r = pad.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (PAD_PX / r.width), y: (e.clientY - r.top) * (PAD_PX / r.height) };
+}
+
+pad.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  pad.setPointerCapture(e.pointerId);
+  drawing = true;
+  hasInk = true;
+  clearTimeout(debTimer);          // more ink coming — don't classify a half-finished character
+  const { x, y } = padPos(e);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + 0.01, y + 0.01);  // dot for a tap
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+});
+
+pad.addEventListener("pointermove", e => {
+  if (!drawing) return;
+  const { x, y } = padPos(e);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+});
+
+function endStroke() {
+  if (!drawing) return;
+  drawing = false;
+  ctx.beginPath();
+  clearTimeout(debTimer);
+  debTimer = setTimeout(classify, CLASSIFY_DELAY_MS);
+}
+pad.addEventListener("pointerup", endStroke);
+pad.addEventListener("pointercancel", endStroke);
+
+function clearPad() {
+  ctx.clearRect(0, 0, PAD_PX, PAD_PX);
+  hasInk = false;
+}
+
+$("btnClear").addEventListener("click", () => { clearPad(); setState("idle"); });
+$("btnRecognize").addEventListener("click", () => { clearTimeout(debTimer); classify(); });
+
+// ============ Rasterize: ink bbox -> aspect-fit -> GRIDxGRID ASCII ============
+function rasterize() {
+  const src = ctx.getImageData(0, 0, pad.width, pad.height).data;
+  let minX = pad.width, minY = pad.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < pad.height; y += 2) {
+    for (let x = 0; x < pad.width; x += 2) {
+      if (src[(y * pad.width + x) * 4 + 3] > 40) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+
+  const padMargin = Math.max(12, 0.12 * Math.max(maxX - minX, maxY - minY));
+  minX = Math.max(0, minX - padMargin); minY = Math.max(0, minY - padMargin);
+  maxX = Math.min(pad.width, maxX + padMargin); maxY = Math.min(pad.height, maxY + padMargin);
+  const bw = maxX - minX, bh = maxY - minY;
+
+  const W = GRID * BLOCK;
+  const work = document.createElement("canvas");
+  work.width = work.height = W;
+  const wctx = work.getContext("2d");
+  const scale = (W * 0.82) / Math.max(bw, bh);
+  const dw = bw * scale, dh = bh * scale;
+  wctx.drawImage(pad, minX, minY, bw, bh, (W - dw) / 2, (W - dh) / 2, dw, dh);
+
+  const px = wctx.getImageData(0, 0, W, W).data;
+  const lines = [];
+  let filled = 0;
+  for (let gy = 0; gy < GRID; gy++) {
+    let line = "";
+    for (let gx = 0; gx < GRID; gx++) {
+      let ink = 0;
+      for (let by = 0; by < BLOCK; by++) {
+        for (let bx = 0; bx < BLOCK; bx++) {
+          const yy = gy * BLOCK + by, xx = gx * BLOCK + bx;
+          if (px[(yy * W + xx) * 4 + 3] > 40) ink++;
+        }
+      }
+      const hit = ink / (BLOCK * BLOCK) >= INK_FRACTION;
+      if (hit) filled++;
+      line += hit ? "#" : ".";
+    }
+    lines.push(line);
+  }
+  return { text: lines.join("\n"), filled };
+}
+
+// ============ Classification (debounced, latest-wins) ============
+let seq = 0;
+let inFlight = 0;
+let stale = 0, errors = 0;
+const rtts = [];
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+  updateEmpty();
+});
+$("threshold").addEventListener("input", () => {
+  $("thrVal").textContent = $("threshold").value + "%";
+});
+
+function updateEmpty() {
+  const es = $("emptyState");
+  if (!$("apiKey").value.trim()) es.textContent = "Enter an API key, then draw a character on the pad.";
+  else if (!hasInk) es.textContent = "Draw a character — classification starts when you pause.";
+  else es.textContent = "Classifying…";
+}
+
+async function classify() {
+  const key = $("apiKey").value.trim();
+  if (!hasInk || !key) { updateEmpty(); return; }
+  const art = rasterize();
+  if (!art || art.filled < 4) { updateEmpty(); return; }
+  $("ascii").textContent = art.text;
+
+  const mySeq = ++seq;
+  inFlight++;
+  setState(`sending (${inFlight})`);
+  $("errline").style.display = "none";
+
+  const payload = {
+    state: {
+      task: "ASCII-art rendering of one handwritten alphanumeric character ('#' = ink, '.' = blank canvas).",
+      drawing: art.text,
+    },
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS,
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    const ms = performance.now() - t0;
+    inFlight--;
+    errors++;
+    rtts.push(ms);
+    renderStats();
+    if (mySeq === seq) {
+      $("errline").textContent = `Request failed (${ms.toFixed(0)} ms): ${e}` +
+        (e instanceof TypeError ? " — possibly CORS; open the page via python3 serve.py." : "");
+      $("errline").style.display = "block";
+      setState("error");
+    }
+    return;
+  }
+  const ms = performance.now() - t0;
+  inFlight--;
+  rtts.push(ms);
+
+  if (mySeq !== seq) {           // a newer request was already sent → discard
+    stale++;
+    renderStats();
+    return;
+  }
+
+  let json;
+  try { json = JSON.parse(body); }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: non-JSON response — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+
+  if (!resp.ok || !json.answers) {
+    errors++;
+    renderStats();
+    $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
+    $("errline").style.display = "block";
+    setState("error");
+    return;
+  }
+
+  const ans = json.answers.char;
+  if (ans && ans.probabilities) {
+    renderRanking(ans.probabilities);
+    const [topChar, topProb] = Object.entries(ans.probabilities).sort((a, b) => b[1] - a[1])[0];
+    const threshold = $("threshold").value / 100;
+    if (topProb >= threshold) {
+      commit(topChar, topProb);
+    } else {
+      flashPad("flash-low");
+      setState(`below threshold (${(topProb * 100).toFixed(0)}% < ${$("threshold").value}%) — add strokes or redraw`);
+    }
+  }
+  if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
+  if (!$("stState").textContent.startsWith("below")) setState(inFlight > 0 ? `sending (${inFlight})` : "done");
+  renderStats();
+}
+
+// ============ Commit / output ============
+const text = [];
+
+function commit(ch, p) {
+  text.push(ch);
+  renderText(ch);
+  flashPad("flash-ok");
+  setState(`committed "${ch}" (${(p * 100).toFixed(0)}%)`);
+  setTimeout(clearPad, 120);       // keep the ink visible for a beat, then clear
+}
+
+function renderText(newChar) {
+  const el = $("committed");
+  if (!text.length) { el.innerHTML = '<span class="placeholder">Committed characters appear here.</span>'; return; }
+  el.innerHTML = text.map((c, i) =>
+    `<span${newChar && i === text.length - 1 ? ' class="new"' : ""}>${c}</span>`).join("");
+}
+
+$("btnBack").addEventListener("click", () => { text.pop(); renderText(); });
+$("btnClearText").addEventListener("click", () => { text.length = 0; renderText(); });
+$("btnCopy").addEventListener("click", async () => {
+  if (!text.length) return;
+  try { await navigator.clipboard.writeText(text.join("")); $("btnCopy").textContent = "Copied!"; }
+  catch { $("btnCopy").textContent = "Failed"; }
+  setTimeout(() => ($("btnCopy").textContent = "Copy"), 1200);
+});
+
+function flashPad(cls) {
+  pad.classList.remove("flash-ok", "flash-low");
+  void pad.offsetWidth;            // restart the transition
+  pad.classList.add(cls);
+  setTimeout(() => pad.classList.remove(cls), 500);
+}
+
+// ============ Ranking ============
+function renderRanking(probs) {
+  const ol = $("ranking");
+  if (!probs) { ol.innerHTML = ""; $("topPick").textContent = ""; updateEmpty(); return; }
+  $("emptyState").textContent = "";
+  const threshold = $("threshold").value / 100;
+  const top = Object.entries(probs).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  $("topPick").textContent = top.length ? `top: ${top[0][0]} (${(top[0][1] * 100).toFixed(1)}%)` : "";
+  ol.innerHTML = top.map(([name, p], i) =>
+    `<li class="${p < threshold ? "below" : ""}" style="animation-delay:${i * 22}ms">
+      <span class="rank">${i + 1}</span>
+      <span class="name">${name}</span>
+      <span class="pct">${(p * 100).toFixed(1)}%</span>
+      <span class="bar"><div style="width:${(p * 100).toFixed(1)}%"></div></span>
+    </li>`).join("");
+}
+
+// ============ Compact stats ============
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("sending") ? "live" : "";
+  renderStats();
+}
+
+function renderStats() {
+  $("stN").textContent = rtts.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errors;
+  if (!rtts.length) return;
+  const last = rtts[rtts.length - 1];
+  const mean = rtts.reduce((a, b) => a + b, 0) / rtts.length;
+  $("stLast").textContent = last.toFixed(0) + "ms";
+  $("stMean").textContent = mean.toFixed(0) + "ms";
+  $("stMin").textContent = Math.min(...rtts).toFixed(0) + "ms";
+  $("stMax").textContent = Math.max(...rtts).toFixed(0) + "ms";
+}
+</script>
+</body>
+</html>
