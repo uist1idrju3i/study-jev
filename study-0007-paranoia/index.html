@@ -104,6 +104,36 @@
   details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
   details.adv summary:hover { color: var(--accent); }
 
+  /* ---- citizen-operated surfaces are INFRARED black: every clearance may touch them ---- */
+  .card.dark {
+    background: #16151a;
+    border-color: #2c2b33;
+    color: #e8e4da;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  .card.dark label { color: #9a958a; }
+  .card.dark input[type=text],
+  .card.dark input[type=password],
+  .card.dark textarea,
+  .card.dark select {
+    background: #0f0e12;
+    color: #eae6da;
+    border-color: #38373f;
+  }
+  .card.dark input:focus, .card.dark textarea:focus, .card.dark select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(194, 47, 47, 0.28);
+  }
+  .card.dark ::placeholder { color: #6b675e; }
+  .card.dark .hint, .card.dark #chars { color: #8a8578; }
+  .card.dark .hint code { background: #26252d; }
+  .card.dark .keydot { background: #3a3942; }
+  .card.dark .keydot.on { background: var(--ok); }
+  .card.dark details.adv summary { color: #8a8578; }
+  .card.dark details.adv summary:hover { color: #e8e4da; }
+  .card.dark #prompt { background: #0f0e12; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
+  .card.dark .promptwrap .icon { opacity: 0.6; }
+
   /* ---- prompt box ---- */
   .promptwrap { position: relative; }
   .promptwrap .icon {
@@ -201,6 +231,35 @@
   #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
   #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
 
+  /* ---- Friend Computer's eye (opens with danger) ---- */
+  #eyeSvg { flex: none; }
+  #lidTop, #lidBot { transform-box: fill-box; transition: transform 0.5s ease; }
+  #lidTop { transform-origin: 50% 0%; }
+  #lidBot { transform-origin: 50% 100%; }
+
+  /* ---- zap overlay ---- */
+  #zap {
+    display: none; position: fixed; inset: 0; z-index: 60;
+    background: #fff8c8; color: #141414;
+    align-items: center; justify-content: center; flex-direction: column;
+    text-align: center; font-family: var(--mono);
+    animation: zapflash 0.12s steps(2) infinite;
+  }
+  #zap h2 { font-size: 2.4rem; margin: 0 0 8px; letter-spacing: 0.1em; }
+  #zap p { margin: 0; font-size: 0.9rem; }
+  @keyframes zapflash { 50% { background: #ffe94a; } }
+
+  /* ---- clone delivery ---- */
+  #cloneRow { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 0.78rem; color: var(--muted); }
+  #clones { font-size: 0.9rem; letter-spacing: 0.2em; }
+  #clones .live-clone { color: var(--accent); }
+  #clones .spent { color: #d8d2c4; }
+  @keyframes cloneIn {
+    from { opacity: 0; transform: translateY(-16px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  .card.dark.clone-in { animation: cloneIn 0.6s ease-out; }
+
   /* ---- termination overlay ---- */
   #terminate {
     display: none; position: fixed; inset: 0; z-index: 50;
@@ -235,7 +294,7 @@
   </header>
 
   <!-- ============ Connection ============ -->
-  <div class="card">
+  <div class="card dark">
     <div class="connrow">
       <div>
         <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
@@ -260,14 +319,14 @@
   </div>
 
   <!-- ============ Prompt ============ -->
-  <div class="card">
+  <div class="card dark" id="promptCard">
     <label for="prompt">Citizen utterance (audited on every keystroke)</label>
     <div class="promptwrap">
       <span class="icon">👁</span>
       <textarea id="prompt" placeholder="e.g. I am so happy today, thanks to our beloved Friend Computer" autofocus></textarea>
     </div>
     <div class="promptrow">
-      <span class="hint">Every keystroke sends a <code>POST /v1/systemone</code> after a <code>180ms</code> debounce</span>
+      <span class="hint">Every keystroke sends a <code>POST /v1/systemone</code> after a <code>180ms</code> debounce · this terminal is INFRARED-rated, so all clearances may touch it</span>
       <span id="chars">0 chars</span>
     </div>
   </div>
@@ -295,6 +354,18 @@
     </div>
     <div id="emptyState">Enter an API key, then type a citizen utterance. Happiness is mandatory.</div>
     <div id="verdictBox" style="display:none">
+      <svg id="eyeSvg" viewBox="0 0 100 60" width="92" height="56" aria-label="Friend Computer is watching">
+        <defs><clipPath id="eyeClip"><ellipse cx="50" cy="30" rx="46" ry="26"/></clipPath></defs>
+        <g clip-path="url(#eyeClip)">
+          <ellipse cx="50" cy="30" rx="46" ry="26" fill="#f2efe6"/>
+          <circle cx="50" cy="30" r="13" fill="#c22f2f"/>
+          <circle cx="50" cy="30" r="6" fill="#141414"/>
+          <circle cx="45.5" cy="24.5" r="3" fill="#fff" opacity=".75"/>
+          <rect id="lidTop" x="0" y="0" width="100" height="30" fill="#16151a"/>
+          <rect id="lidBot" x="0" y="30" width="100" height="30" fill="#16151a"/>
+        </g>
+        <ellipse cx="50" cy="30" rx="46" ry="26" fill="none" stroke="#8a8578" stroke-width="2.5"/>
+      </svg>
       <div id="swatch"></div>
       <div>
         <div id="clearName">—</div>
@@ -312,6 +383,11 @@
     <div id="starRow" style="display:none">
       <span>Loyalty rating — treason stars:</span>
       <span id="stars"></span>
+    </div>
+    <div id="cloneRow" style="display:none">
+      <span>Clone stock:</span>
+      <span id="clones"></span>
+      <span id="cloneNote"></span>
     </div>
     <div id="errline"></div>
   </div>
@@ -331,6 +407,12 @@
   </details>
 
   <footer>study-0007-paranoia — based on study-0003-imagawayaki · TypeSafe System One API · PARANOIA (Friend Computer) motif</footer>
+</div>
+
+<!-- ============ Zap ============ -->
+<div id="zap">
+  <h2 id="zapHead">⚡ ZAP ⚡</h2>
+  <p id="zapSub">Friend Computer neutralizes the traitor.<br>Next clone, please try to be happier.</p>
 </div>
 
 <!-- ============ Termination ============ -->
@@ -562,6 +644,8 @@ function renderVerdict(ans) {
   $("spectrum").style.display = has ? "flex" : "none";
   $("speclegend").style.display = has ? "flex" : "none";
   $("starRow").style.display = has ? "flex" : "none";
+  $("cloneRow").style.display = has ? "flex" : "none";
+  if (has) renderClones();
   $("levels").innerHTML = "";
   $("conf").textContent = "";
   if (!has) {
@@ -594,6 +678,14 @@ function renderVerdict(ans) {
   $("verdict").textContent = c.verdict.replaceAll("{c}", citizenClearance());
   $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
 
+  // Friend Computer's eye: the more dangerous the citizen, the wider it opens
+  const openness = 0.15 + 0.85 * (1 - score / (LEVELS.length - 1));
+  $("lidTop").style.transform = `scaleY(${1 - openness})`;
+  $("lidBot").style.transform = `scaleY(${1 - openness})`;
+
+  // entering the treasonous INFRARED band → Friend Computer fires its zap
+  if (index === 0 && prevClearIdx !== 0) zap();
+
   // spectrum marker
   $("marker").style.left = `${(score / (LEVELS.length - 1)) * 100}%`;
 
@@ -621,6 +713,45 @@ function renderVerdict(ans) {
 function renderStars() {
   $("stars").innerHTML = [0, 1, 2, 3, 4].map(i =>
     `<span class="${i < stars ? "" : "off"}">★</span>`).join("");
+}
+
+// ============ Zap & clone delivery ============
+const MAX_CLONES = 3;
+let cloneNo = 1;             // current citizen's clone number (1-based)
+
+function renderClones() {
+  const remaining = MAX_CLONES - (cloneNo - 1);
+  $("clones").innerHTML = [0, 1, 2].map(i =>
+    `<span class="${i < remaining ? "live-clone" : "spent"}">●</span>`).join("");
+  $("cloneNote").textContent = `— clone ${cloneNo}/${MAX_CLONES} on duty`;
+}
+
+function zap() {
+  const final = cloneNo >= MAX_CLONES;
+  $("zapHead").textContent = final ? "⚡ ZAP ⚡ FINAL CLONE" : "⚡ ZAP ⚡";
+  $("zapSub").innerHTML = final
+    ? "Clone stock exhausted. Friend Computer issues a fresh batch.<br>Please try to be happier this time."
+    : "Friend Computer neutralizes the traitor.<br>Next clone, please try to be happier.";
+  const ov = $("zap");
+  ov.style.display = "flex";
+  setTimeout(() => {
+    ov.style.display = "none";
+    deliverClone(final);
+  }, 1600);
+}
+
+function deliverClone(final) {
+  // the zapped citizen is gone — a new clone arrives with a blank terminal
+  $("prompt").value = "";
+  $("chars").textContent = "0 chars";
+  cloneNo = final ? 1 : cloneNo + 1;
+  renderClones();
+  const card = $("promptCard");
+  card.classList.remove("clone-in");
+  void card.offsetWidth;      // restart the delivery animation
+  card.classList.add("clone-in");
+  setTimeout(() => card.classList.remove("clone-in"), 900);
+  updateEmpty();
 }
 
 // ============ Termination ============
