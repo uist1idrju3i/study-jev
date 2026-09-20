@@ -134,6 +134,15 @@
   .card.dark #prompt { background: #0f0e12; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
   .card.dark .promptwrap .icon { opacity: 0.6; }
 
+  /* ---- citizen nameplate ---- */
+  #citizenLine {
+    font-family: var(--mono); font-size: 0.72rem;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 8px;
+    color: #8a8578;
+  }
+  #citizenName { color: #e8e4da; font-weight: 700; letter-spacing: 0.08em; }
+
   /* ---- prompt box ---- */
   .promptwrap { position: relative; }
   .promptwrap .icon {
@@ -293,7 +302,7 @@
   </header>
 
   <!-- ============ Connection ============ -->
-  <div class="card dark">
+  <div class="card">
     <div class="connrow">
       <div>
         <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
@@ -315,10 +324,15 @@
       <label for="model">Model</label>
       <input type="text" id="model" value="jev-latest">
     </details>
+    <div class="hint" style="margin-top:10px">This configuration panel is ULTRAVIOLET-grade white equipment — adjust it only under proper authorization.</div>
   </div>
 
   <!-- ============ Prompt ============ -->
   <div class="card dark" id="promptCard">
+    <div id="citizenLine">
+      <span id="citizenName">—</span>
+      <span id="citizenHello">GREETINGS, CITIZEN — FRIEND COMPUTER IS YOUR FRIEND · HAPPINESS IS MANDATORY</span>
+    </div>
     <label for="prompt">Citizen utterance (audited on every keystroke)</label>
     <div class="promptwrap">
       <span class="icon">👁</span>
@@ -486,6 +500,19 @@ function hex2rgb(h) {
 }
 function lerp(a, b, t) { return a + (b - a) * t; }
 
+// ============ Citizen identity ============
+// Alpha Complex citizens are named NAME-<clearance letter>-<SECTOR>-<clone no.>
+const NAMES = ["Ada","Blaise","Cass","Dov","Ezra","Fern","Gale","Hux","Iris","Joss","Kest","Lark","Moss","Nyx","Ona","Pax","Quill","Rhea","Sol","Tess","Ursa","Vale","Wren","Xan","Yew","Zia","Glee","Honor","Loyal","Merit","Prudence","Sunny","Vigil","Zeal"];
+const SECTORS = ["GNR","MTL","DEV","AUX","HIL","KRO","POM","TAU","VEL","ZYQ"];
+let citizenBase = "", citizenSector = "";
+
+function rollCitizen() {
+  citizenBase = NAMES[Math.floor(Math.random() * NAMES.length)];
+  citizenSector = SECTORS[Math.floor(Math.random() * SECTORS.length)];
+}
+function citizenLabel() { return `${citizenBase}-${citizenClearance()[0]}-${citizenSector}-${cloneNo}`; }
+function renderCitizen() { $("citizenName").textContent = "CITIZEN " + citizenLabel(); }
+
 // score (0..LEVELS.length-1) → interpolated clearance color + nearest clearance index
 function clearanceAt(score) {
   const t = Math.max(0, Math.min(1, score / (LEVELS.length - 1)));
@@ -539,6 +566,9 @@ const rtts = [];          // completed request RTTs (ms)
 let debTimer = null;
 let stars = 0;            // treason stars (5 = termination)
 let prevClearIdx = null;  // edge-trigger for treason stars
+const MAX_CLONES = 3;
+let cloneNo = 1;          // current citizen's clone number (1-based)
+rollCitizen(); renderCitizen();
 
 $("apiKey").addEventListener("input", () => {
   $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
@@ -548,6 +578,7 @@ $("apiKey").addEventListener("input", () => {
 // changing your clearance re-audits the same utterance under the new context
 $("clearance").addEventListener("change", () => {
   updateClearDot();
+  renderCitizen();         // the nameplate follows the new clearance letter
   clearTimeout(debTimer);
   if ($("prompt").value.trim()) debTimer = setTimeout(fire, DEBOUNCE_MS);
 });
@@ -710,9 +741,6 @@ function renderStars() {
 }
 
 // ============ Zap & clone delivery ============
-const MAX_CLONES = 3;
-let cloneNo = 1;             // current citizen's clone number (1-based)
-
 function renderClones() {
   const remaining = MAX_CLONES - (cloneNo - 1);
   $("clones").innerHTML = [0, 1, 2].map(i =>
@@ -738,8 +766,10 @@ function deliverClone(final) {
   // the zapped citizen is gone — a new clone arrives with a blank terminal
   $("prompt").value = "";
   $("chars").textContent = "0 chars";
+  if (final) rollCitizen();          // stock exhausted → a whole new citizen family is issued
   cloneNo = final ? 1 : cloneNo + 1;
   renderClones();
+  renderCitizen();
   const card = $("promptCard");
   card.classList.remove("clone-in");
   void card.offsetWidth;      // restart the delivery animation
