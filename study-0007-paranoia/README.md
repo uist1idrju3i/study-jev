@@ -15,11 +15,15 @@ citizen of Alpha Complex.
   discarded.
 - **Configurable citizen clearance** — a selector sets *your* security
   clearance (INFRARED … ULTRAVIOLET, default RED). It is sent to the model as
-  `state.citizen_clearance`, so the same utterance is judged differently per
+  `state.citizen_clearance`, and the question's `instructions` embed a
+  per-clearance permission brief (each grade's `allows` text — what it may
+  legally know and do), so the same utterance is judged differently per
   clearance: knowledge or privileges above your clearance are treason for you
-  even when they would be routine from an Ultraviolet. Changing the selection
-  re-audits the current text. Verdict texts are templated with your clearance
-  ("a RED citizen is expected to be fully happy…").
+  even when they would be routine from an Ultraviolet. The selected grade's
+  description appears under the selector and all nine are listed with color
+  chips in the rubric panel. Changing the selection re-audits the current
+  text. Verdict texts are templated with your clearance ("a RED citizen is
+  expected to be fully happy…").
 - **Single `score` question** — one Score question rates the utterance on six
   ordered levels, from *Overt treason* (doubting The Computer, commie/mutant/
   secret-society sympathy, unhappiness, above-clearance knowledge) up to
@@ -46,12 +50,13 @@ citizen of Alpha Complex.
   mandatory", …).
 - **Treason stars** — entering the treason zone (INFRARED/RED) adds one treason
   star to your loyalty rating, matching the tabletop rule. Five stars trigger a
-  full-screen TERMINATED flash and the count resets.
+  full-screen TERMINATED overlay (static, no flashing) and the count resets.
 - **The Computer's eye opens with danger** — an SVG eye in the verdict panel
   opens wider as the score drops and can shut completely for exemplary
   citizens; eyelid aperture is driven continuously by the fractional score.
 - **ZAP + clone delivery** — an INFRARED-band verdict fires a full-screen
-  ⚡ZAP⚡, blanks the utterance box, and delivers the next clone citizen
+  ⚡ZAP⚡ (a static overlay — no flashing), blanks the utterance box, and
+  delivers the next clone citizen
   (the prompt card re-materializes with a delivery animation). Clone stock is
   3 per batch (`MAX_CLONES`); the third zap is a FINAL CLONE termination,
   after which a whole new citizen family (new name, clone 1/3) is issued.
