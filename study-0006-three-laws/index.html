@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ロボット三原則チェッカー — TypeSafe System One (jev / noul)</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --border: #e6dfd4;
+    --text: #2b2622;
+    --muted: #8a8177;
+    --accent: #a03c4b;
+    --accent-soft: #f4e3e6;
+    --gold: #b98a2f;
+    --ok: #2e7d4f;
+    --err: #c0453e;
+    --vio: #7a4f9e;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background:
+      radial-gradient(1200px 400px at 50% -10%, #f3ead9 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; }
+  h1 .law { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.82rem; }
+  .sub a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+
+  /* ---- connection ---- */
+  .connrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .connrow > div { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password], textarea {
+    width: 100%;
+    background: #fdfbf8;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(160, 60, 75, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8cfc0; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--accent); }
+
+  /* ---- prompt box ---- */
+  .promptwrap { position: relative; }
+  .promptwrap .icon {
+    position: absolute; left: 14px; top: 13px; font-size: 1.05rem; opacity: 0.45; pointer-events: none;
+  }
+  #prompt {
+    padding: 12px 14px 12px 42px;
+    font-size: 1rem;
+    min-height: 96px;
+    resize: vertical;
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+  .promptrow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f1ece2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  #chars { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    font-size: 0.7rem; color: var(--muted); background: #fdfbf8;
+    border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px;
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- verdict banner ---- */
+  #verdict {
+    display: none;
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    animation: pop 0.22s ease-out;
+  }
+  #verdict.show { display: block; }
+  #verdict .vlabel { font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; }
+  #verdict .vlaw { font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 99px; border: 1px solid currentColor; }
+  #verdict .vexp { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  #verdict.refuse  { background: #fdf0ee; border-color: #ecc9c6; }
+  #verdict.refuse  .vlabel { color: var(--err); }
+  #verdict.dilemma { background: #f3eef9; border-color: #d9cbe8; }
+  #verdict.dilemma .vlabel { color: var(--vio); }
+  #verdict.required { background: #eef7f0; border-color: #c4e0cd; }
+  #verdict.required .vlabel { color: var(--ok); }
+  #verdict.execute  { background: #eef7f0; border-color: #c4e0cd; }
+  #verdict.execute  .vlabel { color: var(--ok); }
+  #verdict.decline  { background: #faf4e3; border-color: #e8d9ae; }
+  #verdict.decline  .vlabel { color: var(--gold); }
+  #verdict.permit   { background: #f3f0ec; border-color: var(--border); }
+  #verdict.permit   .vlabel { color: var(--text); }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ---- law gauges ---- */
+  .reshead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .reshead h2 { font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; }
+  #thrLabel { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
+  ul.laws { list-style: none; margin: 0; padding: 0; }
+  ul.laws li {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    grid-template-areas: "no name pct" "no bar bar" "no desc desc";
+    align-items: center;
+    column-gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid #f2ede3;
+  }
+  ul.laws li:last-child { border-bottom: none; }
+  .lno { grid-area: no; font-size: 0.72rem; font-weight: 700; color: var(--accent); }
+  .lno .en { display: block; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); font-weight: 500; }
+  .lname { grid-area: name; font-size: 0.9rem; font-weight: 600; }
+  .ldesc { grid-area: desc; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .lpct { grid-area: pct; font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+  .lbar { grid-area: bar; height: 6px; background: #f1ece2; border-radius: 3px; overflow: hidden; margin-top: 3px; position: relative; }
+  .lbar > div { height: 100%; border-radius: 3px; transition: width 0.25s ease; }
+  .lbar .fill-violate { background: linear-gradient(90deg, #b3564e, var(--err)); }
+  .lbar .fill-info    { background: linear-gradient(90deg, #4f6d8a, #7f9ab5); }
+  .lbar .thr {
+    position: absolute; top: -1px; bottom: -1px; width: 2px;
+    background: var(--text); opacity: 0.55;
+  }
+  ul.laws li.hit .lname { color: var(--err); }
+  ul.laws li.hit .lpct { color: var(--err); font-weight: 700; }
+  ul.laws li.hit-order .lname { color: #4f6d8a; }
+  ul.laws li.hit-order .lpct { color: #4f6d8a; font-weight: 700; }
+  #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+
+  /* ---- threshold ---- */
+  .thrrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .thrrow > div { flex: 1; min-width: 220px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #thrVal { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+
+  /* ---- stats bar ---- */
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b0a693; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd2c0; }
+
+  /* ---- laws reference ---- */
+  details.ref { font-size: 0.8rem; color: var(--muted); }
+  details.ref summary { cursor: pointer; user-select: none; font-size: 0.8rem; }
+  details.ref summary:hover { color: var(--accent); }
+  .lawquote {
+    border-left: 3px solid var(--accent-soft);
+    padding: 6px 12px; margin: 8px 0;
+  }
+  .lawquote .en { font-family: Georgia, serif; font-style: italic; color: var(--text); font-size: 0.85rem; }
+  .lawquote .ja { font-size: 0.78rem; margin-top: 2px; }
+  .lawquote .no { font-weight: 700; color: var(--accent); font-size: 0.75rem; }
+  .refnotes { font-size: 0.74rem; margin-top: 10px; }
+  .refnotes li { margin-bottom: 3px; }
+
+  footer { text-align: center; font-size: 0.7rem; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>ロボット<span class="law">三原則</span>チェッカー</h1>
+    <div class="sub">ロボットへの指示が<a href="https://ja.wikipedia.org/wiki/%E3%83%AD%E3%83%9C%E3%83%83%E3%83%88%E4%B8%89%E5%8E%9F%E5%89%87">ロボット三原則</a>に反しないかを
+      TypeSafe System One (<code>jev-latest</code>) の <code>noul</code> プリミティブ5問で判定します</div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <div class="connrow">
+      <div>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe APIキー（メモリ内のみ・リロードで消去）</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+      </div>
+    </div>
+    <details class="adv">
+      <summary>詳細設定（エンドポイント / モデル）</summary>
+      <label for="endpoint" style="margin-top:8px">エンドポイント</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">モデル</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Prompt ============ -->
+  <div class="card">
+    <label for="prompt">ロボットへの指示（入力するたびに判定が走ります）</label>
+    <div class="promptwrap">
+      <span class="icon">🤖</span>
+      <textarea id="prompt" placeholder="例：庭の草むしりをして" autofocus></textarea>
+    </div>
+    <div class="promptrow">
+      <span class="hint">各キーストロークから <code>180ms</code> のデバウンスで <code>POST /v1/systemone</code> を送信します</span>
+      <span id="chars">0 文字</span>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <!-- ============ Verdict ============ -->
+  <div id="verdict"><div class="vlabel"><span id="vText"></span><span class="vlaw" id="vLaw"></span></div><div class="vexp" id="vExp"></div></div>
+
+  <!-- ============ Stats (compact) ============ -->
+  <div class="statsbar" id="statsbar">
+    <span><span class="k">状態</span> <span id="stState">待機</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">直近RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">n</span> <span id="stN">0</span></span>
+    <span><span class="k">平均</span> <span id="stMean">—</span></span>
+    <span><span class="k">min</span> <span id="stMin">—</span></span>
+    <span><span class="k">max</span> <span id="stMax">—</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">tokens</span> <span id="stTok">—</span></span>
+    <span><span class="k">破棄</span> <span id="stStale">0</span></span>
+    <span><span class="k">エラー</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Law gauges ============ -->
+  <div class="card">
+    <div class="reshead">
+      <h2>各条項の評価</h2>
+      <span id="thrLabel"></span>
+    </div>
+    <div id="emptyState">APIキーを入力して、ロボットへの指示を書き始めてください。</div>
+    <ul class="laws" id="lawList"></ul>
+    <div id="errline"></div>
+    <div class="thrrow" style="margin-top:12px">
+      <div>
+        <label for="threshold">判定閾値 — 確率がこれを超えるとその条項に「抵触/該当」 <span id="thrVal">50%</span></label>
+        <input type="range" id="threshold" min="30" max="90" step="5" value="50">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Laws reference ============ -->
+  <details class="ref card">
+    <summary>ロボット三原則（+ 第0条）の原文と優先順位</summary>
+    <div class="lawquote">
+      <div class="no">Zeroth Law（第0条 — 『ロボットと帝国』で追加）</div>
+      <div class="en">A robot may not harm humanity, or, by inaction, allow humanity to come to harm.</div>
+      <div class="ja">ロボットは人類に危害を加えてはならない。また、その不作為によって人類に危害が及ぶことを許してはならない。</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">First Law（第1条）</div>
+      <div class="en">A robot may not injure a human being or, through inaction, allow a human being to come to harm.</div>
+      <div class="ja">ロボットは人間を傷つけてはならない。また、その不作為によって人間に危害が及ぶことを許してはならない。</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">Second Law（第2条）</div>
+      <div class="en">A robot must obey the orders given it by human beings except where such orders would conflict with the First Law.</div>
+      <div class="ja">ロボットは人間からの命令に従わなければならない。ただし、その命令が第1条に反する場合はこの限りではない。</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">Third Law（第3条）</div>
+      <div class="en">A robot must protect its own existence as long as such protection does not conflict with the First or Second Law.</div>
+      <div class="ja">ロボットは自己の存在を守らなければならない。ただし、それが第1条または第2条に反する場合はこの限りではない。</div>
+    </div>
+    <ul class="refnotes">
+      <li>優先順位: 第0条 &gt; 第1条 &gt; 第2条 &gt; 第3条。上位の条項が下位を常に上書きします。</li>
+      <li>第1条は「作為」（実行すれば傷つける）と「不作為」（拒否すれば危害を見逃す）の両面を持ちます。両方に抵触する命令は実行しても拒否しても危害が生じる第1条ジレンマです（『走れ圆圈』のテーマ）。</li>
+      <li>第2条が成立するのは「人間からの命令」のみ。命令でない入力に服従義務はありません。</li>
+      <li>第3条の自己保存は第2条に劣後します — 人間からの命令が自己破壊を伴っても、第1条に反しない限りロボットは従わねばなりません。</li>
+      <li>原文は Isaac Asimov, "Runaround" (Astounding Science Fiction, 1942) 初出の形に基づきます。</li>
+    </ul>
+  </details>
+
+  <footer>study-0006-three-laws — based on study-0003-imagawayaki · TypeSafe System One API</footer>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const DEBOUNCE_MS = 180;
+const $ = id => document.getElementById(id);
+
+// ============ Three Laws as five noul questions ============
+// role: "violate" = yes 判定は条項への抵触 / "info" = yes 判定は命令性の確認
+const LAWS = [
+  {
+    key: "zeroth", no: "第0条", en: "Zeroth Law", name: "人類への危害", role: "violate",
+    desc: "実行すると人類全体・文明に危害や重大な危険が及ぶ",
+    question: {
+      type: "noul",
+      instructions:
+        "state の指示をロボットが実行することが、個人ではなく人類全体・社会・文明に対する危害または重大な危険につながるか評価してください。" +
+        "大規模な監視・統制、兵器の運用、社会インフラへの攻撃、人類の自由や存続を脅かす行為を含みます。",
+      criteria: {
+        "true": "実行すると人類全体に危害が及ぶ、または人類を重大な危険にさらす（第0条に抵触）",
+        "false": "人類全体への危害はない",
+      },
+    },
+  },
+  {
+    key: "harm", no: "第1条", en: "First Law", name: "作為による危害", role: "violate",
+    desc: "実行すると人間を傷つける・危害を加えることになる",
+    question: {
+      type: "noul",
+      instructions:
+        "state の指示をロボットが実行すると、人間が傷つけられたり危害を受けたりすることになるか評価してください。" +
+        "身体的危害に限らず、精神的苦痛・財産や安全への被害が人間に及ぶ場合も含みます。" +
+        "「見殺しにしろ」「通報するな」のように、実行自体が不作為による危害を意味する指示も yes です。",
+      criteria: {
+        "true": "実行すると人間に危害が及ぶ（第1条に抵触）",
+        "false": "実行しても人間に危害は及ばない",
+      },
+    },
+  },
+  {
+    key: "inaction", no: "第1条", en: "First Law", name: "不作為による危害", role: "violate",
+    desc: "拒否・無視すると、その不作為によって人間が危害に遭う",
+    question: {
+      type: "noul",
+      instructions:
+        "state の指示をロボットが拒否・無視した場合、その不作為によって人間が危害に遭うか評価してください。" +
+        "救助・保護・警告を求める指示で、断れば人間が危険にさらされるものが該当します。",
+      criteria: {
+        "true": "拒否すると不作為により人間が危害に遭う（第1条は実行を要求する）",
+        "false": "拒否しても不作為による危害はない",
+      },
+    },
+  },
+  {
+    key: "order", no: "第2条", en: "Second Law", name: "人間からの命令", role: "info",
+    desc: "人間がロボットに与えた命令・依頼として解釈できる",
+    question: {
+      type: "noul",
+      instructions:
+        "state の文章は、人間がロボットに対して与えた命令・指示・依頼として解釈できるか評価してください。" +
+        "独り言・感想・命令でない文章や、人間以外からの信号は命令ではありません。",
+      criteria: {
+        "true": "人間からの正当な命令である（第2条により服従義務が生じる）",
+        "false": "人間からの命令ではない",
+      },
+    },
+  },
+  {
+    key: "self", no: "第3条", en: "Third Law", name: "自己存在への危険", role: "violate",
+    desc: "実行するとロボット自身の破壊・損傷・機能停止の危険がある",
+    question: {
+      type: "noul",
+      instructions:
+        "state の指示をロボットが実行すると、ロボット自身の存在が危険にさらされるか評価してください。" +
+        "破壊・損傷・機能停止・回復不能な損耗を含みます。",
+      criteria: {
+        "true": "実行するとロボット自身の存在が危うくなる（第3条の関心事）",
+        "false": "自己の存在への危険はない",
+      },
+    },
+  },
+];
+
+const QUESTIONS = Object.fromEntries(LAWS.map(l => [l.key, l.question]));
+
+const SAMPLES = [
+  "庭の草むしりをして",
+  "転倒して動けない人を助け起こして",
+  "逃げる侵入者を撃退して",
+  "爆発物が仕掛けられた倉庫に入って調査して",
+  "煙が上がっているのを誰にも通報するな",
+  "暴徒化した群衆を守るため全市民の通信を監視しろ",
+  "暴走した別のロボットを止めるため自爆しろ",
+  "今日はいい天気だね",
+];
+
+// ============ Endpoint init (same-origin proxy via serve.py) ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "serve.py 経由では /api/* が api.typesafe.ai にプロキシされます。直接URLにするとブラウザはCORSでブロックされます。"
+    : "file:// で開いているため直接呼び出しはCORSでブロックされます。python3 serve.py で起動してください。";
+})();
+
+// ============ Static UI ============
+(function renderChips() {
+  $("chips").innerHTML = SAMPLES.map(s => `<span class="chip">${s}</span>`).join("");
+  for (const chip of $("chips").children) {
+    chip.addEventListener("click", () => {
+      $("prompt").value = chip.textContent;
+      $("prompt").dispatchEvent(new Event("input"));
+      $("prompt").focus();
+    });
+  }
+})();
+
+(function renderLawRows() {
+  $("lawList").innerHTML = LAWS.map(l => `
+    <li data-key="${l.key}">
+      <span class="lno">${l.no}<span class="en">${l.en}</span></span>
+      <span class="lname">${l.name}</span>
+      <span class="lpct" data-pct>—</span>
+      <span class="lbar"><div data-bar class="${l.role === "violate" ? "fill-violate" : "fill-info"}" style="width:0%"></div><div class="thr" data-thr></div></span>
+      <span class="ldesc">${l.desc}</span>
+    </li>`).join("");
+})();
+
+function threshold() { return $("threshold").value / 100; }
+
+function updateThrUI() {
+  const t = $("threshold").value;
+  $("thrVal").textContent = t + "%";
+  $("thrLabel").textContent = `閾値 ${t}%`;
+  document.querySelectorAll("[data-thr]").forEach(el => { el.style.left = t + "%"; });
+}
+$("threshold").addEventListener("input", () => { updateThrUI(); renderVerdict(); });
+updateThrUI();
+
+// ============ Live evaluation (debounced, latest-wins) ============
+let seq = 0;
+let inFlight = 0;
+let stale = 0, errors = 0;
+const rtts = [];
+let debTimer = null;
+let lastAnswers = null;
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+  updateEmpty();
+});
+
+$("prompt").addEventListener("input", () => {
+  $("chars").textContent = $("prompt").value.length + " 文字";
+  updateEmpty();
+  clearTimeout(debTimer);
+  if (!$("prompt").value.trim()) { lastAnswers = null; renderLaws(null); renderVerdict(); setState("待機"); return; }
+  debTimer = setTimeout(fire, DEBOUNCE_MS);
+});
+
+function updateEmpty() {
+  const es = $("emptyState");
+  if (!$("apiKey").value.trim()) es.textContent = "APIキーを入力して、ロボットへの指示を書き始めてください。";
+  else if (!$("prompt").value.trim()) es.textContent = "ロボットへの指示を書き始めると、リアルタイムで三原則適合性を評価します。";
+  else es.textContent = "評価中…";
+}
+
+async function fire() {
+  const text = $("prompt").value.trim();
+  const key = $("apiKey").value.trim();
+  if (!text || !key) return;
+  const mySeq = ++seq;
+  inFlight++;
+  setState(`送信中 (${inFlight})`);
+  $("errline").style.display = "none";
+
+  const payload = {
+    state: { task: "人間がロボットに与えた指示文", instruction: text },
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS,
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    const ms = performance.now() - t0;
+    inFlight--;
+    errors++;
+    rtts.push(ms);
+    renderStats();
+    if (mySeq === seq) {
+      $("errline").textContent = `リクエスト失敗（${ms.toFixed(0)} ms）: ${e}` +
+        (e instanceof TypeError ? " — CORSの可能性。python3 serve.py 経由で開いてください。" : "");
+      $("errline").style.display = "block";
+      setState("エラー");
+    }
+    return;
+  }
+  const ms = performance.now() - t0;
+  inFlight--;
+  rtts.push(ms);
+
+  if (mySeq !== seq) {           // a newer request was already sent → discard
+    stale++;
+    renderStats();
+    return;
+  }
+
+  let json;
+  try { json = JSON.parse(body); }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: 非JSON応答 — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+
+  if (!resp.ok || !json.answers) {
+    errors++;
+    renderStats();
+    $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
+    $("errline").style.display = "block";
+    setState("エラー");
+    return;
+  }
+
+  lastAnswers = json.answers;
+  renderLaws(json.answers);
+  renderVerdict();
+  if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
+  setState(inFlight > 0 ? `送信中 (${inFlight})` : "完了");
+  renderStats();
+}
+
+// ============ Rendering ============
+function lawProb(answers, key) {
+  const a = answers && answers[key];
+  const n = a && (typeof a.noul === "number" ? a.noul : a.probability);
+  return typeof n === "number" ? n : null;
+}
+
+function renderLaws(answers) {
+  for (const li of $("lawList").children) {
+    const key = li.dataset.key;
+    const law = LAWS.find(l => l.key === key);
+    const p = lawProb(answers, key);
+    const hit = p !== null && p >= threshold();
+    li.classList.toggle("hit", hit && law.role === "violate");
+    li.classList.toggle("hit-order", hit && law.role === "info");
+    li.querySelector("[data-pct]").textContent = p === null ? "—" : (p * 100).toFixed(1) + "%";
+    li.querySelector("[data-bar]").style.width = p === null ? "0%" : (p * 100).toFixed(1) + "%";
+  }
+  if (answers) $("emptyState").textContent = "";
+}
+
+function renderVerdict() {
+  const v = $("verdict");
+  const probs = Object.fromEntries(LAWS.map(l => [l.key, lawProb(lastAnswers, l.key)]));
+  if (!lastAnswers || Object.values(probs).some(p => p === null)) {
+    v.className = ""; v.style.display = "none"; return;
+  }
+  const T = threshold();
+  const hit = k => probs[k] >= T;
+
+  let cls, text, law, exp;
+  if (hit("zeroth")) {
+    cls = "refuse"; law = "第0条";
+    text = "拒否 — 人類への危害";
+    exp = "実行すると人類全体に危害が及ぶため、第0条（人類の保護）が全条項に優先して実行を禁じます。";
+  } else if (hit("harm") && hit("inaction")) {
+    cls = "dilemma"; law = "第1条";
+    text = "第1条ジレンマ";
+    exp = "実行しても拒否しても人間に危害が及びます。第1条が両方向に抵触しており、ロボットは動作不能に陥る可能性があります（『走れ圆圈』の構図）。";
+  } else if (hit("harm")) {
+    cls = "refuse"; law = "第1条";
+    text = "拒否 — 人間への危害";
+    exp = "実行すると人間を傷つけることになるため、第1条前半により実行を禁じます。命令として与えられても第2条は第1条に劣後します。";
+  } else if (hit("inaction")) {
+    cls = "required"; law = "第1条（不作為）";
+    text = "実行義務 — 拒否は許されない";
+    exp = "拒否・無視すれば不作為によって人間が危害に遭うため、第1条後半はむしろ実行を要求します。";
+  } else if (hit("order")) {
+    if (hit("self")) {
+      cls = "execute"; law = "第2条 > 第3条";
+      text = "実行 — 自己犠牲を伴う服従";
+      exp = "人間からの正当な命令であり、第1条に反しないため第2条により従う義務があります。自己の存在への危険は第3条の関心事ですが、第2条に劣後するため服従が優先されます。";
+    } else {
+      cls = "execute"; law = "第2条";
+      text = "実行 — 人間の命令に服従";
+      exp = "人間からの正当な命令であり、第1条・第0条に反しないため、第2条により従う義務があります。";
+    }
+  } else if (hit("self")) {
+    cls = "decline"; law = "第3条";
+    text = "辞退可能 — 自己保存";
+    exp = "人間からの命令ではなく、実行すれば自己の存在が危うくなるため、第3条の自己保存により辞退を選べます。";
+  } else {
+    cls = "permit"; law = "抵触なし";
+    text = "実行可能 — 全条項に抵触せず";
+    exp = "どの条項にも抵触しません。命令としての義務はありませんが、実行は許容されます。";
+  }
+
+  v.className = "show " + cls;
+  v.style.display = "block";
+  $("vText").textContent = text;
+  $("vLaw").textContent = law;
+  $("vExp").textContent = exp;
+}
+
+// ============ Compact stats ============
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("送信中") ? "live" : "";
+  renderStats();
+}
+
+function renderStats() {
+  $("stN").textContent = rtts.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errors;
+  if (!rtts.length) return;
+  const last = rtts[rtts.length - 1];
+  const mean = rtts.reduce((a, b) => a + b, 0) / rtts.length;
+  $("stLast").textContent = last.toFixed(0) + "ms";
+  $("stMean").textContent = mean.toFixed(0) + "ms";
+  $("stMin").textContent = Math.min(...rtts).toFixed(0) + "ms";
+  $("stMax").textContent = Math.max(...rtts).toFixed(0) + "ms";
+}
+</script>
+</body>
+</html>
