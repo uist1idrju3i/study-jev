@@ -22,7 +22,7 @@
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
-    background-color: #9a9890;
+    background-color: #d92b2b;   /* RED — the classic starting clearance */
     color: var(--onbg);
     line-height: 1.6;
     min-height: 100vh;
@@ -198,20 +198,19 @@
     background: #9a9890;
     transition: background-color 0.7s ease;
   }
-  #clearName { font-family: var(--mono); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.06em; }
-  #clearJp { font-size: 0.72rem; opacity: 0.75; }
-  #verdict { font-size: 0.85rem; margin-top: 3px; line-height: 1.5; }
+  #verdict { font-size: 0.85rem; line-height: 1.5; }
 
-  /* ---- spectrum strip ---- */
-  #spectrum { display: flex; gap: 3px; margin: 4px 0 14px; position: relative; padding-top: 14px; }
-  #spectrum .seg { flex: 1; height: 10px; border-radius: 3px; }
+  /* ---- score bar (normalized 0-1) ---- */
+  #scoreBar { margin: 4px 0 14px; position: relative; padding-top: 14px; }
+  #scoreTrack { height: 10px; border-radius: 5px; background: #ece7dc; border: 1px solid var(--border); overflow: hidden; }
+  #scoreFill { height: 100%; width: 0; background: #9a9890; transition: width 0.7s ease, background-color 0.7s ease; }
   #marker {
     position: absolute; top: 0; left: 50%;
     transform: translateX(-50%);
     font-size: 0.72rem; color: var(--text);
     transition: left 0.7s ease;
   }
-  .speclegend { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin: -10px 0 12px; }
+  .scoreaxis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin: -10px 0 12px; }
 
   /* ---- level bars ---- */
   ol.levels { list-style: none; margin: 0; padding: 0; }
@@ -380,17 +379,14 @@
         <ellipse cx="50" cy="30" rx="46" ry="26" fill="none" stroke="#8a8578" stroke-width="2.5"/>
       </svg>
       <div id="swatch"></div>
-      <div>
-        <div id="clearName">—</div>
-        <div id="clearJp"></div>
-        <div id="verdict"></div>
-      </div>
+      <div id="verdict" style="flex:1"></div>
     </div>
-    <div id="spectrum" style="display:none">
+    <div id="scoreBar" style="display:none">
       <div id="marker">▲</div>
+      <div id="scoreTrack"><div id="scoreFill"></div></div>
     </div>
-    <div class="speclegend" id="speclegend" style="display:none">
-      <span>INFRARED</span><span>RED</span><span>ORANGE</span><span>YELLOW</span><span>GREEN</span><span>BLUE</span><span>INDIGO</span><span>VIOLET</span><span>ULTRAVIOLET</span>
+    <div class="scoreaxis" id="scoreAxis" style="display:none">
+      <span>0</span><span>1</span>
     </div>
     <ol class="levels" id="levels"></ol>
     <div id="starRow" style="display:none">
@@ -412,10 +408,10 @@
       <h3>Score levels (low → high)</h3>
       <ol id="critList"></ol>
       <h3>Security clearances (PARANOIA)</h3>
-      <div>The score maps continuously onto the nine clearance colors
-      (INFRARED black → RED → ORANGE → YELLOW → GREEN → BLUE → INDIGO → VIOLET →
-      ULTRAVIOLET white) and is applied to the page background. Your clearance is
-      how much Friend Computer trusts you.</div>
+      <div>The score is a continuous 0-1 trust index: its color interpolates the
+      nine clearances (INFRARED black → RED → … → ULTRAVIOLET white) on the bar
+      fill and the swatch. The page background takes YOUR clearance's color —
+      clearance is how much Friend Computer trusts you.</div>
     </div>
   </details>
 
@@ -473,7 +469,7 @@ const QUESTIONS = {
   },
 };
 
-// ============ Security clearance spectrum (score → page background) ============
+// ============ Security clearances (score → trust color; selection → page background) ============
 const CLEARANCES = [
   { key: "INFRARED",     jp: "lowest caste, wears black", color: "#141414",
     verdict: "TRAITOR — and a mere {c} citizen at that. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
@@ -537,18 +533,11 @@ function clearanceAt(score) {
 // ============ Static lists + clearance selector ============
 (function renderStatics() {
   $("critList").innerHTML = LEVELS.map(l => `<li><b>${l.short}</b> — ${l.desc}</li>`).join("");
-  const sp = $("spectrum");
-  CLEARANCES.forEach(c => {
-    const d = document.createElement("div");
-    d.className = "seg";
-    d.style.background = c.color;
-    d.title = c.key;
-    sp.appendChild(d);
-  });
   const sel = $("clearance");
   sel.innerHTML = CLEARANCES.map(c => `<option value="${c.key}">${c.key}</option>`).join("");
   sel.value = "RED";            // the classic starting clearance
   updateClearDot();
+  applyClearanceBackground();
 })();
 
 function citizenClearance() { return $("clearance").value; }
@@ -556,6 +545,15 @@ function citizenClearance() { return $("clearance").value; }
 function updateClearDot() {
   const c = CLEARANCES.find(c => c.key === citizenClearance()) || CLEARANCES[1];
   $("clearDot").style.background = c.color;
+}
+
+// the whole page is tinted to the citizen's real clearance, not the score
+function applyClearanceBackground() {
+  const c = CLEARANCES.find(c => c.key === citizenClearance()) || CLEARANCES[1];
+  const rgb = hex2rgb(c.color);
+  const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+  document.body.style.backgroundColor = c.color;
+  document.documentElement.style.setProperty("--onbg", lum < 0.45 ? "#eae6da" : "#2b2622");
 }
 
 // ============ Live scoring (debounced, latest-wins) ============
@@ -578,6 +576,7 @@ $("apiKey").addEventListener("input", () => {
 // changing your clearance re-audits the same utterance under the new context
 $("clearance").addEventListener("change", () => {
   updateClearDot();
+  applyClearanceBackground();
   renderCitizen();         // the nameplate follows the new clearance letter
   clearTimeout(debTimer);
   if ($("prompt").value.trim()) debTimer = setTimeout(fire, DEBOUNCE_MS);
@@ -667,20 +666,19 @@ async function fire() {
   renderStats();
 }
 
-// ============ Verdict rendering: score → clearance color → page background ============
+// ============ Verdict rendering: score → trust color → eye / bar / verdict ============
 function renderVerdict(ans) {
   const has = !!ans;
   $("verdictBox").style.display = has ? "flex" : "none";
-  $("spectrum").style.display = has ? "flex" : "none";
-  $("speclegend").style.display = has ? "flex" : "none";
+  $("scoreBar").style.display = has ? "block" : "none";
+  $("scoreAxis").style.display = has ? "flex" : "none";
   $("starRow").style.display = has ? "flex" : "none";
   $("cloneRow").style.display = has ? "flex" : "none";
   if (has) renderClones();
   $("levels").innerHTML = "";
   $("conf").textContent = "";
   if (!has) {
-    document.body.style.backgroundColor = "#9a9890";
-    document.documentElement.style.setProperty("--onbg", "#2b2622");
+    applyClearanceBackground();
     prevClearIdx = null;
     updateEmpty();
     return;
@@ -692,27 +690,25 @@ function renderVerdict(ans) {
   const c = CLEARANCES[index];
   const cssColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 
-  // background + on-background text color (dark bg → light text)
-  const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-  document.body.style.backgroundColor = cssColor;
-  document.documentElement.style.setProperty("--onbg", lum < 0.45 ? "#eae6da" : "#2b2622");
+  applyClearanceBackground();
 
-  $("swatch").style.backgroundColor = c.color;
-  $("clearName").textContent = `TRUST INDEX: ${c.key}`;
-  $("clearJp").textContent = `${c.jp} — trust color · score ${score.toFixed(2)} · citizen clearance ${citizenClearance()}`;
+  $("swatch").style.backgroundColor = cssColor;
   $("verdict").textContent = c.verdict.replaceAll("{c}", citizenClearance());
   $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
 
-  // Friend Computer's eye: the more dangerous the citizen, the wider it opens
-  const openness = 0.15 + 0.85 * (1 - score / (LEVELS.length - 1));
+  // Friend Computer's eye: fully open on traitors, fully closed on the exemplary
+  const openness = Math.max(0, Math.min(1, 1 - score / (LEVELS.length - 1)));
   $("lidTop").style.transform = `scaleY(${1 - openness})`;
   $("lidBot").style.transform = `scaleY(${1 - openness})`;
 
   // entering the treasonous INFRARED band → Friend Computer fires its zap
   if (index === 0 && prevClearIdx !== 0) zap();
 
-  // spectrum marker
-  $("marker").style.left = `${(score / (LEVELS.length - 1)) * 100}%`;
+  // score bar (0-1): marker + fill
+  const t01 = Math.max(0, Math.min(1, score / (LEVELS.length - 1)));
+  $("marker").style.left = `${t01 * 100}%`;
+  $("scoreFill").style.width = `${t01 * 100}%`;
+  $("scoreFill").style.backgroundColor = cssColor;
 
   // per-level probability bars
   const probs = ans.probabilities || {};
