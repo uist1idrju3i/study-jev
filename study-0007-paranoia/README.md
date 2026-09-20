@@ -29,11 +29,20 @@ citizen of Alpha Complex.
   across PARANOIA's nine security clearances
   (INFRARED black → RED → ORANGE → YELLOW → GREEN → BLUE → INDIGO → VIOLET →
   ULTRAVIOLET white) and applied to the page background, a spectrum strip and
-  the verdict box. In the fiction, clearance is exactly "how much The Computer
-  trusts you". Page text flips light/dark for contrast.
-- **INFRARED-rated controls** — citizen-operated surfaces (credentials,
-  clearance selector, utterance box) are black, because white panels would be
-  ULTRAVIOLET equipment that lower clearances may not legally touch.
+  a color swatch — the verdict box itself stays neutral. In the fiction,
+  clearance is exactly "how much The Computer trusts you". Page text flips
+  light/dark for contrast.
+- **INFRARED-rated controls / ULTRAVIOLET-rated settings** — the citizen's
+  utterance terminal is black, because white panels would be ULTRAVIOLET
+  equipment that lower clearances may not legally touch. The configuration
+  card (API key, clearance selector) is the opposite case: those settings
+  belong to Friend Computer, so they render as ULTRAVIOLET white.
+- **Citizen nameplate** — above the input box, the current citizen is shown in
+  canonical form `NAME-<clearance letter>-<SECTOR>-<clone no.>`
+  (e.g. `WREN-R-MTL-2`): randomly generated English name and sector on load,
+  the letter tracks the clearance setting, and the trailing number is the
+  clone number. A fixed greeting ("GREETINGS, CITIZEN — FRIEND COMPUTER IS
+  YOUR FRIEND · HAPPINESS IS MANDATORY") rides alongside.
 - **Friend Computer verdicts** — each clearance band speaks in The Computer's
   voice ("TRAITOR. Report to the nearest termination booth…", "Happiness is
   mandatory", …).
@@ -47,7 +56,7 @@ citizen of Alpha Complex.
   ⚡ZAP⚡, blanks the utterance box, and delivers the next clone citizen
   (the prompt card re-materializes with a delivery animation). Clone stock is
   3 per batch (`MAX_CLONES`); the third zap is a FINAL CLONE termination,
-  after which a fresh batch is issued.
+  after which a whole new citizen family (new name, clone 1/3) is issued.
 - **Compact stats bar** — state, last RTT, n, mean, min, max, token usage,
   stale (superseded) responses and error count.
 - **No API-key persistence** — the key lives only in the page's JavaScript
