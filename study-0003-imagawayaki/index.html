@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>今川焼き 名称判定デモ — TypeSafe System One (jev)</title>
+<title>ベイクドモチョチョ 名称判定デモ — TypeSafe System One (jev)</title>
 <style>
   :root {
     --bg: #faf7f2;
@@ -131,6 +131,12 @@
   #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
 
   /* ---- stats bar ---- */
+  body::before {
+    content: ""; position: fixed; inset: -60%; z-index: 0;
+    background: url("imagawayaki.png") repeat; background-size: 150px;
+    transform: rotate(-16deg); opacity: .07; pointer-events: none;
+  }
+  .wrap, footer { position: relative; z-index: 1; }
   .statsbar {
     font-family: var(--mono);
     font-size: 0.72rem;
@@ -165,9 +171,9 @@
 <div class="wrap">
 
   <header>
-    <h1>今川焼き<span class="yaki">名称判定</span></h1>
+    <h1>ベイクドモチョチョ<span class="yaki">名称判定</span></h1>
     <div class="sub">TypeSafe System One (<code>jev-latest</code>) によるリアルタイム名称推定デモ —
-      候補リストは <a href="https://ja.wikipedia.org/wiki/%E4%BB%8A%E5%B7%9D%E7%84%BC%E3%81%8D">Wikipedia「今川焼き」</a> に基づく73件</div>
+      候補リストは <a href="https://ja.wikipedia.org/wiki/%E4%BB%8A%E5%B7%9D%E7%84%BC%E3%81%8D">Wikipedia「今川焼き」</a> に基づく74件</div>
   </header>
 
   <!-- ============ Connection ============ -->
@@ -229,7 +235,7 @@
 
   <!-- ============ Candidate list ============ -->
   <details class="cand card">
-    <summary>候補一覧（73件）を表示</summary>
+    <summary>候補一覧（74件）を表示</summary>
     <div class="candgrid" id="candList"></div>
   </details>
 
@@ -318,14 +324,15 @@ const CANDIDATES = [
   ["名菓ひよ子", "extra", "ひよこ形の饅頭（1912年・福岡飯塚発祥、ひよ子本舗吉野堂）。黄身餡"],
   ["博多の女", "extra", "二鶴堂（1972年〜）。小豆羊羹をバームクーヘンで包んだ一口サイズ。博多人形の包装"],
   ["めんべい", "extra", "福太郎の明太子風味せんべい。イカ・タコ入り辛口（福岡土産の定番）"],
-  ["筑紫もち", "extra", "如水庵。餅にきな粉と黒蜜をかけて食べる菓子（福岡）"],
+  ["ベイクドモチョチョ", "meme", "2021年頃からインターネット上で提唱された統一名称案（ジョーク・ミーム由来）。今川焼き系菓子の呼称が統一されていない状況を皮肉って命名。埼玉・川越の店舗などで実際に採用された例もある。"],
+    ["筑紫もち", "extra", "如水庵。餅にきな粉と黒蜜をかけて食べる菓子（福岡）"],
   ["梅ヶ枝餅", "extra", "太宰府天満宮参道名物。あんこ入りの焼き餅に梅の刻印（菅原道真にちなむ）"],
   ["博多通りもん", "extra", "明月堂。ミルク・バター風味の白あんを包んだ洋風饅頭"],
   // 未定義
   ["未定義", "undef", "どの候補にも当てはまらない、または判断不能な場合"],
 ];
 
-const CAT_LABEL = { shape: "形状・製法", region: "商品・地域", extra: "追加", undef: "未定義" };
+const CAT_LABEL = { shape: "形状・製法", region: "商品・地域", meme: "統一案", extra: "追加", undef: "未定義" };
 
 const QUESTIONS = {
   name: {
@@ -350,7 +357,7 @@ const QUESTIONS = {
 
 // ============ Candidate list rendering ============
 (function renderCandidates() {
-  const groups = [["shape", "形状や製法に基づく名称"], ["region", "商品名や地域による名称"], ["extra", "追加"], ["undef", "その他"]];
+  const groups = [["shape", "形状や製法に基づく名称"], ["region", "商品名や地域による名称"], ["meme", "統一名称案"], ["extra", "追加"], ["undef", "その他"]];
   $("candList").innerHTML = groups.map(([cat, label]) => {
     const items = CANDIDATES.filter(c => c[1] === cat).map(c => `<div>${c[0]}</div>`).join("");
     return `<h3>${label}</h3>${items}`;

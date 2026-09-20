@@ -1,4 +1,4 @@
-# study-0003-imagawayaki — 今川焼き name-classifier demo
+# study-0003-imagawayaki — ベイクドモチョチョ name-classifier demo
 
 A single-page, fully client-side demo for the [TypeSafe System One API](https://docs.typesafe.ai/introduction/quickstart)
 (`jev-latest`), styled like a real web service. It classifies a free-text description
@@ -9,18 +9,21 @@ of a Japanese sweet into its most likely regional/product name — live, on ever
 - **Live classification** — every keystroke in the prompt box fires a `POST /v1/systemone`
   request after a 180 ms debounce (the same cadence as real search-as-you-type services).
   Only the newest response is rendered; superseded responses are discarded.
-- **Single `choice` question** — one Choice question carries all 73 candidates; the answer's
+- **Single `choice` question** — one Choice question carries all 74 candidates; the answer's
   `probabilities` map drives a top-10 ranking with animated bars and category tags.
 - **Candidate list** — built from the Japanese Wikipedia article
   [今川焼き](https://ja.wikipedia.org/wiki/今川焼き): all entries under
   「形状や製法に基づく名称」 and 「商品名や地域による名称」, plus eight extra Kyushu/Hakata
   sweets (大原松露饅頭, 博多ぶらぶら, 名菓ひよ子, 博多の女, めんべい, 筑紫もち, 梅ヶ枝餅,
-  博多通りもん) and 「未定義」 as the none-of-the-above option.
+  博多通りもん), 「ベイクドモチョチョ」(the internet-proposed unified name), and 「未定義」
+  as the none-of-the-above option. Each candidate's `criteria` text is a researched one-line
+  description (region of use + distinguishing facts: maker, shape, filling, origin story).
 - **Compact stats bar** — one modest line: state, last RTT, n, mean, min, max, token usage,
   discarded (stale) responses and error count. No chart, no CSV.
 - **No API-key persistence** — the key lives only in the page's JavaScript context and is
   wiped on reload. Nothing is written to `localStorage`, cookies, or files.
-- **Japanese UI**.
+- **Japanese UI** — titled ベイクドモチョチョ (the neutral unified name); a generated
+  imagawayaki illustration tiles the background diagonally at low opacity.
 
 ## Quick start
 
@@ -38,4 +41,5 @@ python3 serve.py          # serves the page + proxies /api/* -> api.typesafe.ai
 | File | Description |
 | --- | --- |
 | `index.html` | Entire app: markup, styles and logic in one file (no build, no dependencies) |
+| `imagawayaki.png` | Generated illustration used as the diagonally-tiled page background |
 | `serve.py` | Stdlib-only static server + `/api/*` proxy bound to 127.0.0.1 |
