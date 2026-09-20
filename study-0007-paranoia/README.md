@@ -31,12 +31,23 @@ citizen of Alpha Complex.
   ULTRAVIOLET white) and applied to the page background, a spectrum strip and
   the verdict box. In the fiction, clearance is exactly "how much The Computer
   trusts you". Page text flips light/dark for contrast.
+- **INFRARED-rated controls** — citizen-operated surfaces (credentials,
+  clearance selector, utterance box) are black, because white panels would be
+  ULTRAVIOLET equipment that lower clearances may not legally touch.
 - **Friend Computer verdicts** — each clearance band speaks in The Computer's
   voice ("TRAITOR. Report to the nearest termination booth…", "Happiness is
   mandatory", …).
 - **Treason stars** — entering the treason zone (INFRARED/RED) adds one treason
   star to your loyalty rating, matching the tabletop rule. Five stars trigger a
   full-screen TERMINATED flash and the count resets.
+- **The Computer's eye opens with danger** — an SVG eye in the verdict panel
+  opens wider as the score drops (contented citizens barely warrant attention);
+  eyelid aperture is driven continuously by the fractional score.
+- **ZAP + clone delivery** — an INFRARED-band verdict fires a full-screen
+  ⚡ZAP⚡, blanks the utterance box, and delivers the next clone citizen
+  (the prompt card re-materializes with a delivery animation). Clone stock is
+  3 per batch (`MAX_CLONES`); the third zap is a FINAL CLONE termination,
+  after which a fresh batch is issued.
 - **Compact stats bar** — state, last RTT, n, mean, min, max, token usage,
   stale (superseded) responses and error count.
 - **No API-key persistence** — the key lives only in the page's JavaScript
