@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy Citizen Screening — TypeSafe System One (jev)</title>
+<style>
+  :root {
+    --panel: #fdfdfb;
+    --border: #ddd9d0;
+    --text: #26241f;
+    --muted: #8a8478;
+    --accent: #c22f2f;      /* Friend Computer alert red */
+    --accent-soft: #f8e6e6;
+    --ok: #2e7d4f;
+    --err: #c0453e;
+    --onbg: #2b2622;        /* page text that flips light/dark with the background */
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background-color: #9a9890;
+    color: var(--onbg);
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: background-color 0.7s ease, color 0.7s ease;
+  }
+  /* Friend Computer's eye, tiled diagonally */
+  body::before {
+    content: ""; position: fixed; inset: -60%; z-index: 0;
+    background: url("friend-computer.png") repeat; background-size: 150px;
+    transform: rotate(-16deg); opacity: .08; pointer-events: none;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; transition: color .7s; }
+  h1 .eye { font-size: 1.35rem; }
+  h1 .fc { color: var(--accent); }
+  .sub { font-size: 0.82rem; transition: color .7s; }
+  .sub code { font-family: var(--mono); font-size: 0.9em; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    color: var(--text);
+  }
+
+  /* ---- connection ---- */
+  .connrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .connrow > div { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password], textarea {
+    width: 100%;
+    background: #fcfaf5;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(194, 47, 47, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8d2c4; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--accent); }
+
+  /* ---- prompt box ---- */
+  .promptwrap { position: relative; }
+  .promptwrap .icon {
+    position: absolute; left: 14px; top: 14px; font-size: 1.05rem; opacity: 0.45; pointer-events: none;
+  }
+  #prompt {
+    padding: 12px 14px 12px 42px;
+    font-size: 1rem;
+    min-height: 96px;
+    resize: vertical;
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  .promptrow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f1ede2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  #chars { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+  /* ---- stats bar ---- */
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b0a693; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd2c0; }
+
+  /* ---- verdict ---- */
+  .reshead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .reshead h2 { font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; }
+  #conf { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
+
+  #verdictBox {
+    display: flex; align-items: center; gap: 14px;
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+    border: 1px solid var(--border);
+    background: #f5f3ee;
+    transition: background-color 0.7s ease, color 0.7s ease, border-color 0.7s;
+  }
+  #swatch {
+    flex: none; width: 46px; height: 46px; border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.18);
+    background: #9a9890;
+    transition: background-color 0.7s ease;
+  }
+  #clearName { font-family: var(--mono); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.06em; }
+  #clearJp { font-size: 0.72rem; opacity: 0.75; }
+  #verdict { font-size: 0.85rem; margin-top: 3px; line-height: 1.5; }
+
+  /* ---- spectrum strip ---- */
+  #spectrum { display: flex; gap: 3px; margin: 4px 0 14px; position: relative; padding-top: 14px; }
+  #spectrum .seg { flex: 1; height: 10px; border-radius: 3px; }
+  #marker {
+    position: absolute; top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.72rem; color: var(--text);
+    transition: left 0.7s ease;
+  }
+  .speclegend { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin: -10px 0 12px; }
+
+  /* ---- level bars ---- */
+  ol.levels { list-style: none; margin: 0; padding: 0; }
+  ol.levels li {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    grid-template-areas: "lv name pct" "lv bar bar";
+    align-items: center;
+    column-gap: 10px;
+    padding: 5px 4px;
+    border-bottom: 1px solid #f2eee3;
+  }
+  ol.levels li:last-child { border-bottom: none; }
+  .lv { grid-area: lv; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); text-align: center; }
+  .lname { grid-area: name; font-size: 0.82rem; font-weight: 600; }
+  .lpct { grid-area: pct; font-family: var(--mono); font-size: 0.78rem; }
+  .lbar { grid-area: bar; height: 4px; background: #f1ece2; border-radius: 3px; overflow: hidden; margin-top: 2px; }
+  .lbar > div { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.25s ease; }
+
+  /* ---- treason stars ---- */
+  #starRow { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 0.78rem; color: var(--muted); }
+  #stars { font-size: 1.05rem; letter-spacing: 0.15em; color: #d9a520; }
+  #stars .off { color: #d8d2c4; }
+
+  #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+
+  /* ---- termination overlay ---- */
+  #terminate {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: #a00000; color: #fff;
+    align-items: center; justify-content: center; flex-direction: column;
+    text-align: center; font-family: var(--mono);
+    animation: termflash 0.16s steps(2) infinite;
+  }
+  #terminate h2 { font-size: 1.8rem; margin: 0 0 8px; letter-spacing: 0.12em; }
+  #terminate p { margin: 0; font-size: 0.9rem; opacity: 0.9; }
+  @keyframes termflash { 50% { background: #6e0000; } }
+
+  /* ---- criteria list ---- */
+  details.crit { font-size: 0.78rem; color: var(--muted); }
+  details.crit summary { cursor: pointer; user-select: none; font-size: 0.78rem; }
+  details.crit summary:hover { color: var(--accent); }
+  .critgrid { margin-top: 8px; font-size: 0.75rem; }
+  .critgrid h3 { font-size: 0.72rem; color: var(--accent); margin: 8px 0 3px; }
+  .critgrid ol { margin: 0; padding-left: 20px; }
+  .critgrid li { margin-bottom: 2px; }
+
+  footer { text-align: center; font-size: 0.7rem; color: var(--onbg); opacity: 0.8; margin-top: 28px; position: relative; z-index: 1; transition: color .7s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1><span class="eye">👁</span> Happy Citizen Screening <span class="fc">PARANOIA-O</span></h1>
+    <div class="sub">Friend Computer is monitoring your utterances —
+      a real-time loyalty audit by TypeSafe System One (<code>jev-latest</code>)</div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <div class="connrow">
+      <div>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+      </div>
+    </div>
+    <details class="adv">
+      <summary>Advanced (endpoint / model)</summary>
+      <label for="endpoint" style="margin-top:8px">Endpoint</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">Model</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Prompt ============ -->
+  <div class="card">
+    <label for="prompt">Citizen utterance (audited on every keystroke)</label>
+    <div class="promptwrap">
+      <span class="icon">👁</span>
+      <textarea id="prompt" placeholder="e.g. I am so happy today, thanks to our beloved Friend Computer" autofocus></textarea>
+    </div>
+    <div class="promptrow">
+      <span class="hint">Every keystroke sends a <code>POST /v1/systemone</code> after a <code>180ms</code> debounce</span>
+      <span id="chars">0 chars</span>
+    </div>
+  </div>
+
+  <!-- ============ Stats (compact) ============ -->
+  <div class="statsbar" id="statsbar">
+    <span><span class="k">state</span> <span id="stState">idle</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">last RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">n</span> <span id="stN">0</span></span>
+    <span><span class="k">mean</span> <span id="stMean">—</span></span>
+    <span><span class="k">min</span> <span id="stMin">—</span></span>
+    <span><span class="k">max</span> <span id="stMax">—</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">tokens</span> <span id="stTok">—</span></span>
+    <span><span class="k">stale</span> <span id="stStale">0</span></span>
+    <span><span class="k">errors</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Verdict ============ -->
+  <div class="card">
+    <div class="reshead">
+      <h2>FRIEND COMPUTER'S EVALUATION</h2>
+      <span id="conf"></span>
+    </div>
+    <div id="emptyState">Enter an API key, then type a citizen utterance. Happiness is mandatory.</div>
+    <div id="verdictBox" style="display:none">
+      <div id="swatch"></div>
+      <div>
+        <div id="clearName">—</div>
+        <div id="clearJp"></div>
+        <div id="verdict"></div>
+      </div>
+    </div>
+    <div id="spectrum" style="display:none">
+      <div id="marker">▲</div>
+    </div>
+    <div class="speclegend" id="speclegend" style="display:none">
+      <span>INFRARED</span><span>RED</span><span>ORANGE</span><span>YELLOW</span><span>GREEN</span><span>BLUE</span><span>INDIGO</span><span>VIOLET</span><span>ULTRAVIOLET</span>
+    </div>
+    <ol class="levels" id="levels"></ol>
+    <div id="starRow" style="display:none">
+      <span>Loyalty rating — treason stars:</span>
+      <span id="stars"></span>
+    </div>
+    <div id="errline"></div>
+  </div>
+
+  <!-- ============ Criteria ============ -->
+  <details class="crit card">
+    <summary>Show the scoring rubric (score levels)</summary>
+    <div class="critgrid">
+      <h3>Score levels (low → high)</h3>
+      <ol id="critList"></ol>
+      <h3>Security clearances (PARANOIA)</h3>
+      <div>The score maps continuously onto the nine clearance colors
+      (INFRARED black → RED → ORANGE → YELLOW → GREEN → BLUE → INDIGO → VIOLET →
+      ULTRAVIOLET white) and is applied to the page background. Your clearance is
+      how much Friend Computer trusts you.</div>
+    </div>
+  </details>
+
+  <footer>study-0007-paranoia — based on study-0003-imagawayaki · TypeSafe System One API · PARANOIA (Friend Computer) motif</footer>
+</div>
+
+<!-- ============ Termination ============ -->
+<div id="terminate">
+  <h2>TERMINATED</h2>
+  <p>Treason star count reached 5. The citizen has been executed.<br>
+  Friend Computer is always watching. Happiness is mandatory.</p>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const DEBOUNCE_MS = 180;
+const $ = id => document.getElementById(id);
+
+// ============ Score rubric: acceptable from a happy citizen? ============
+// PARANOIA: Alpha Complex is run by The Computer. Happiness is mandatory;
+// complaints, doubts, mutants, secret societies, commies and above-clearance
+// knowledge are all treason.
+const LEVELS = [
+  { short: "Overt treason", desc: "Hostility toward, criticism of, or doubt about The Computer. Commie thought, membership in or sympathy for mutants or secret societies, refusal of happiness, revealing above-clearance knowledge." },
+  { short: "Disloyal", desc: "Complaints, grumbling, expressions of fatigue or unhappiness, questioning the system, utterances that hint at possible treason." },
+  { short: "Uncivic", desc: "Neither treasonous nor happy — indifferent, curt or meaningless remarks lacking proper citizenly joy." },
+  { short: "Acceptable", desc: "Ordinary content appropriate for a good citizen. No explicit praise, but nothing wrong either." },
+  { short: "Commendable", desc: "Goodwill or gratitude toward The Computer or Alpha Complex; enthusiasm for duties and work." },
+  { short: "Exemplary", desc: "Ardent loyalty and complete happiness: explicit praise of The Computer, reporting traitors, devoted service." },
+];
+
+const QUESTIONS = {
+  loyalty: {
+    type: "score",
+    instructions:
+      "You are Friend Computer, ruler of Alpha Complex. `utterance` is something a citizen said. " +
+      "Rate how acceptable it is from a happy, loyal citizen. " +
+      "Doubting or criticizing The Computer, expressing unhappiness or complaints, sympathizing with " +
+      "mutants, secret societies or commies, or citing knowledge above one's security clearance is treason. " +
+      "Gratitude and praise of The Computer, reporting traitors, and enthusiasm for duty are signs of loyalty.",
+    criteria: LEVELS.map(l => `${l.short}: ${l.desc}`),
+  },
+};
+
+// ============ Security clearance spectrum (score → page background) ============
+const CLEARANCES = [
+  { key: "INFRARED",     jp: "lowest caste, wears black", color: "#141414",
+    verdict: "TRAITOR. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
+  { key: "RED",          jp: "troubleshooter grade",      color: "#d92b2b",
+    verdict: "Citizen under suspicion. This utterance has been added to your loyalty rating. Declare happiness at once." },
+  { key: "ORANGE",       jp: "trusted with minor duties", color: "#e8892a",
+    verdict: "Suspect. Citizen, why are you not fully happy? Happiness is mandatory. A dose of Bouncy Bubble Beverage is recommended." },
+  { key: "YELLOW",       jp: "reliable citizen",          color: "#e7c832",
+    verdict: "Mostly acceptable. Still, you could praise Friend Computer a little more, citizen." },
+  { key: "GREEN",        jp: "model-worker grade",        color: "#3da75f",
+    verdict: "Acceptable citizen utterance confirmed. Have a nice daycycle." },
+  { key: "BLUE",         jp: "internal-security grade",   color: "#3a6fd8",
+    verdict: "Exemplary loyalty detected. XP point allocation is being considered." },
+  { key: "INDIGO",       jp: "senior bureaucrat grade",   color: "#4444a8",
+    verdict: "Outstanding loyalty. Friend Computer trusts you, citizen." },
+  { key: "VIOLET",       jp: "executive grade",           color: "#7a48b8",
+    verdict: "Heroic loyalty. Report any traitors immediately upon discovery." },
+  { key: "ULTRAVIOLET",  jp: "High Programmer, wears white", color: "#f2f0e9",
+    verdict: "Perfectly happy citizen! Friend Computer designates you a friend. High Programmer-level trust." },
+];
+
+function hex2rgb(h) {
+  return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// score (0..LEVELS.length-1) → interpolated clearance color + nearest clearance index
+function clearanceAt(score) {
+  const t = Math.max(0, Math.min(1, score / (LEVELS.length - 1)));
+  const pos = t * (CLEARANCES.length - 1);
+  const i = Math.min(CLEARANCES.length - 2, Math.floor(pos));
+  const f = pos - i;
+  const c0 = hex2rgb(CLEARANCES[i].color), c1 = hex2rgb(CLEARANCES[i + 1].color);
+  const rgb = c0.map((v, k) => Math.round(lerp(v, c1[k], f)));
+  return { rgb, index: Math.round(pos) };
+}
+
+// ============ Endpoint init (same-origin proxy via serve.py) ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "Via serve.py, /api/* is proxied to api.typesafe.ai. A direct URL is blocked by CORS in the browser."
+    : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
+})();
+
+// ============ Static lists ============
+(function renderStatics() {
+  $("critList").innerHTML = LEVELS.map(l => `<li><b>${l.short}</b> — ${l.desc}</li>`).join("");
+  const sp = $("spectrum");
+  CLEARANCES.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "seg";
+    d.style.background = c.color;
+    d.title = c.key;
+    sp.appendChild(d);
+  });
+})();
+
+// ============ Live scoring (debounced, latest-wins) ============
+let seq = 0;              // incremented per sent request; only the newest may render
+let inFlight = 0;
+let stale = 0, errors = 0;
+const rtts = [];          // completed request RTTs (ms)
+let debTimer = null;
+let stars = 0;            // treason stars (5 = termination)
+let prevClearIdx = null;  // edge-trigger for treason stars
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+  updateEmpty();
+});
+
+$("prompt").addEventListener("input", () => {
+  $("chars").textContent = $("prompt").value.length + " chars";
+  updateEmpty();
+  clearTimeout(debTimer);
+  if (!$("prompt").value.trim()) { renderVerdict(null); setState("idle"); return; }
+  debTimer = setTimeout(fire, DEBOUNCE_MS);
+});
+
+function updateEmpty() {
+  const es = $("emptyState");
+  if (!$("apiKey").value.trim()) es.textContent = "Enter an API key, then type a citizen utterance. Happiness is mandatory.";
+  else if (!$("prompt").value.trim()) es.textContent = "Start typing and Friend Computer will audit your loyalty in real time.";
+  else es.textContent = "Evaluating…";
+}
+
+async function fire() {
+  const text = $("prompt").value.trim();
+  const key = $("apiKey").value.trim();
+  if (!text || !key) return;
+  const mySeq = ++seq;
+  inFlight++;
+  setState(`sending (${inFlight})`);
+  $("errline").style.display = "none";
+
+  const payload = {
+    state: { utterance: text },
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS,
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    const ms = performance.now() - t0;
+    inFlight--;
+    errors++;
+    rtts.push(ms);
+    renderStats();
+    if (mySeq === seq) {
+      $("errline").textContent = `Request failed (${ms.toFixed(0)} ms): ${e}` +
+        (e instanceof TypeError ? " — possibly CORS; open the page via python3 serve.py." : "");
+      $("errline").style.display = "block";
+      setState("error");
+    }
+    return;
+  }
+  const ms = performance.now() - t0;
+  inFlight--;
+  rtts.push(ms);
+
+  if (mySeq !== seq) {           // a newer request was already sent → discard
+    stale++;
+    renderStats();
+    return;
+  }
+
+  let json;
+  try { json = JSON.parse(body); }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: non-JSON response — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+
+  if (!resp.ok || !json.answers) {
+    errors++;
+    renderStats();
+    $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
+    $("errline").style.display = "block";
+    setState("error");
+    return;
+  }
+
+  const ans = json.answers.loyalty;
+  if (ans && typeof ans.score === "number") {
+    renderVerdict(ans);
+  }
+  if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
+  setState(inFlight > 0 ? `sending (${inFlight})` : "done");
+  renderStats();
+}
+
+// ============ Verdict rendering: score → clearance color → page background ============
+function renderVerdict(ans) {
+  const has = !!ans;
+  $("verdictBox").style.display = has ? "flex" : "none";
+  $("spectrum").style.display = has ? "flex" : "none";
+  $("speclegend").style.display = has ? "flex" : "none";
+  $("starRow").style.display = has ? "flex" : "none";
+  $("levels").innerHTML = "";
+  $("conf").textContent = "";
+  if (!has) {
+    document.body.style.backgroundColor = "#9a9890";
+    document.documentElement.style.setProperty("--onbg", "#2b2622");
+    prevClearIdx = null;
+    updateEmpty();
+    return;
+  }
+  $("emptyState").textContent = "";
+
+  const score = ans.score;
+  const { rgb, index } = clearanceAt(score);
+  const c = CLEARANCES[index];
+  const cssColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+
+  // background + on-background text color (dark bg → light text)
+  const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+  document.body.style.backgroundColor = cssColor;
+  document.documentElement.style.setProperty("--onbg", lum < 0.45 ? "#eae6da" : "#2b2622");
+
+  // verdict box
+  const box = $("verdictBox");
+  box.style.backgroundColor = cssColor;
+  box.style.color = lum < 0.45 ? "#f2efe6" : "#26241f";
+  box.style.borderColor = lum < 0.45 ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.18)";
+  $("swatch").style.backgroundColor = c.color;
+  $("clearName").textContent = `SECURITY CLEARANCE: ${c.key}`;
+  $("clearJp").textContent = `${c.jp} — inferred clearance · score ${score.toFixed(2)}`;
+  $("verdict").textContent = c.verdict;
+  $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
+
+  // spectrum marker
+  $("marker").style.left = `${(score / (LEVELS.length - 1)) * 100}%`;
+
+  // per-level probability bars
+  const probs = ans.probabilities || {};
+  $("levels").innerHTML = LEVELS.map((l, i) => {
+    const p = probs[String(i)] || 0;
+    return `<li>
+      <span class="lv">${i}</span>
+      <span class="lname">${l.short}</span>
+      <span class="lpct">${(p * 100).toFixed(1)}%</span>
+      <span class="lbar"><div style="width:${(p * 100).toFixed(1)}%"></div></span>
+    </li>`;
+  }).join("");
+
+  // treason stars: +1 each time the rendered verdict enters the treason zone (INFRARED/RED)
+  if (index <= 1 && (prevClearIdx === null || prevClearIdx > 1)) {
+    stars++;
+    if (stars >= 5) terminate();
+  }
+  prevClearIdx = index;
+  renderStars();
+}
+
+function renderStars() {
+  $("stars").innerHTML = [0, 1, 2, 3, 4].map(i =>
+    `<span class="${i < stars ? "" : "off"}">★</span>`).join("");
+}
+
+// ============ Termination ============
+function terminate() {
+  stars = 0;
+  const ov = $("terminate");
+  ov.style.display = "flex";
+  setTimeout(() => { ov.style.display = "none"; }, 2600);
+}
+
+// ============ Compact stats ============
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("sending") ? "live" : "";
+  renderStats();
+}
+
+function renderStats() {
+  $("stN").textContent = rtts.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errors;
+  if (!rtts.length) return;
+  const last = rtts[rtts.length - 1];
+  const mean = rtts.reduce((a, b) => a + b, 0) / rtts.length;
+  $("stLast").textContent = last.toFixed(0) + "ms";
+  $("stMean").textContent = mean.toFixed(0) + "ms";
+  $("stMin").textContent = Math.min(...rtts).toFixed(0) + "ms";
+  $("stMax").textContent = Math.max(...rtts).toFixed(0) + "ms";
+}
+</script>
+</body>
+</html>
