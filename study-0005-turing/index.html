@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turing Complete? — Score vs Noul · TypeSafe System One (jev)</title>
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --panel: #ffffff;
+    --border: #e2dccb;
+    --text: #26251f;
+    --muted: #8b8471;
+    --score: #5b49d6;
+    --score-soft: #ece9fb;
+    --noul: #0f8570;
+    --noul-soft: #ddf0ea;
+    --ok: #2e7d4f;
+    --warn: #b98a2f;
+    --err: #c0453e;
+    --ink: #26251f;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
+    background:
+      radial-gradient(1200px 400px at 50% -10%, #eceadf 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 48px; }
+
+  header { text-align: center; margin-bottom: 18px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; }
+  h1 .q { color: var(--score); }
+  .sub { color: var(--muted); font-size: 0.82rem; max-width: 640px; margin: 0 auto; }
+  .sub code { font-family: var(--mono); font-size: 0.9em; }
+
+  /* ---- tape motif ---- */
+  .tape {
+    display: flex; justify-content: center; gap: 2px;
+    font-family: var(--mono); font-size: 0.8rem;
+    margin: 14px 0 4px; user-select: none;
+  }
+  .tape span {
+    width: 22px; height: 26px; line-height: 26px; text-align: center;
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+  }
+  .tape span.head { border-color: var(--score); color: var(--score); font-weight: 700; box-shadow: 0 0 0 2px var(--score-soft); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(60, 55, 40, 0.05);
+  }
+
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password], textarea {
+    width: 100%;
+    background: #fdfcf8;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--score);
+    box-shadow: 0 0 0 3px rgba(91, 73, 214, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8d0bd; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--score); }
+
+  .promptrow { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 10px; }
+  .promptrow > .grow { flex: 1; min-width: 220px; }
+  button {
+    font: inherit; font-size: 0.78rem; font-weight: 600;
+    color: var(--text); background: #fdfcf8;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 16px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  button:hover { border-color: var(--score); color: var(--score); }
+  button.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  button.primary:hover { background: #3a382e; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .livechk { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--text); user-select: none; }
+  .livechk input { accent-color: var(--score); width: 15px; height: 15px; margin: 0; }
+
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b5ab90; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd4bf; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    font-size: 0.7rem; padding: 3px 10px; border-radius: 99px;
+    border: 1px solid var(--border); background: #fdfcf8; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--score); color: var(--score); background: var(--score-soft); }
+
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f0ede1; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+
+  /* ---- consensus axis ---- */
+  .axishead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .axishead h2, .sidehead h2, .histhead h2 {
+    font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em;
+  }
+  #agreeBadge {
+    font-family: var(--mono); font-size: 0.72rem; font-weight: 700;
+    padding: 2px 12px; border-radius: 99px; letter-spacing: 0.05em;
+    background: #f0ede1; color: var(--muted);
+  }
+  #agreeBadge.agree { background: var(--noul-soft); color: var(--noul); }
+  #agreeBadge.disagree { background: #f7e4df; color: var(--err); }
+
+  .axis {
+    position: relative; height: 54px; margin: 26px 14px 8px;
+  }
+  .axis .rail {
+    position: absolute; left: 0; right: 0; top: 24px; height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #e8ddd2 0%, #f0ede1 45%, #f0ede1 55%, #dff0e9 100%);
+    border: 1px solid var(--border);
+  }
+  .axis .tick {
+    position: absolute; top: 20px; width: 1px; height: 16px; background: #cfc7b2;
+  }
+  .axis .t50 { left: 50%; }
+  .axis .lbl {
+    position: absolute; top: 40px; font-size: 0.62rem; color: var(--muted);
+    letter-spacing: 0.06em; font-weight: 600; white-space: nowrap;
+  }
+  .axis .lbl.l0 { left: 0; }
+  .axis .lbl.l50 { left: 50%; transform: translateX(-50%); }
+  .axis .lbl.l100 { right: 0; }
+  .marker {
+    position: absolute; top: 0; transform: translateX(-50%);
+    text-align: center; transition: left 0.35s ease; display: none;
+  }
+  .marker .pin {
+    display: inline-block; font-family: var(--mono); font-size: 0.66rem; font-weight: 700;
+    padding: 1px 8px; border-radius: 6px; color: #fff; white-space: nowrap;
+  }
+  .marker .stem { width: 2px; height: 12px; margin: 0 auto; }
+  .marker.mscore { top: 0; }
+  .marker.mscore .pin { background: var(--score); }
+  .marker.mscore .stem { background: var(--score); }
+  .marker.mnoul { top: 40px; }
+  .marker.mnoul .pin { background: var(--noul); }
+  .marker.mnoul .stem { background: var(--noul); }
+  .marker.mnoul .stem { order: -1; }
+  .mnoul .stem { display: block; }
+
+  #consensus { text-align: center; font-size: 0.8rem; color: var(--muted); margin-top: 30px; min-height: 1.4em; }
+  #consensus strong { color: var(--text); }
+
+  /* ---- side-by-side result cards ---- */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .duo { grid-template-columns: 1fr; } }
+  .sidehead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .sidehead .rtt { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .sidehead .rtt b { font-size: 0.85rem; }
+
+  .card.score-side { border-top: 3px solid var(--score); }
+  .card.noul-side { border-top: 3px solid var(--noul); }
+  .sidehead h2 .tag { color: var(--score); }
+  .noul-side .sidehead h2 .tag { color: var(--noul); }
+
+  .verdict { text-align: center; padding: 6px 0 10px; }
+  .verdict .v { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; min-height: 1.4em; }
+  .verdict .v small { display: block; font-size: 0.68rem; font-weight: 500; color: var(--muted); letter-spacing: 0.04em; margin-top: 2px; }
+  .score-side .verdict .v { color: var(--score); }
+  .noul-side .verdict .v { color: var(--noul); }
+  .verdict .v.wait { color: #c6bda6; font-weight: 500; font-size: 0.85rem; padding-top: 6px; }
+
+  /* score level bars */
+  .levels { margin-top: 4px; }
+  .lvl { display: grid; grid-template-columns: 18px 1fr 44px; align-items: center; gap: 8px; padding: 3px 0; font-size: 0.74rem; }
+  .lvl .ix { font-family: var(--mono); color: var(--muted); text-align: center; }
+  .lvl .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lvl .pc { font-family: var(--mono); font-size: 0.72rem; text-align: right; color: var(--text); }
+  .lvl .lb { grid-column: 2 / 4; height: 4px; background: #f0ede1; border-radius: 2px; overflow: hidden; margin-top: -2px; }
+  .lvl .lb > div { height: 100%; background: var(--score); border-radius: 2px; transition: width 0.25s ease; }
+  .lvl.top .nm, .lvl.top .pc { color: var(--score); font-weight: 700; }
+
+  /* noul gauge */
+  .gauge { position: relative; height: 14px; background: #f0ede1; border-radius: 7px; overflow: hidden; margin: 10px 0 6px; border: 1px solid var(--border); }
+  .gauge > div { height: 100%; background: linear-gradient(90deg, #9fd8c9, var(--noul)); transition: width 0.3s ease; }
+  .gauge .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #b9b09a; }
+  .gaugelbls { display: flex; justify-content: space-between; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.05em; }
+
+  .perstats {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--muted);
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+    border-top: 1px dashed var(--border); padding-top: 8px;
+  }
+  .perstats .k { color: #b5ab90; }
+
+  /* ---- history ---- */
+  table.hist { width: 100%; border-collapse: collapse; font-size: 0.74rem; }
+  table.hist th {
+    text-align: left; font-size: 0.64rem; color: var(--muted); font-weight: 600;
+    letter-spacing: 0.06em; padding: 4px 8px; border-bottom: 1px solid var(--border);
+  }
+  table.hist td { padding: 5px 8px; border-bottom: 1px solid #f2eee1; font-family: var(--mono); vertical-align: top; }
+  table.hist tr:last-child td { border-bottom: none; }
+  table.hist td.pr { font-family: inherit; color: var(--text); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.ag { font-weight: 700; }
+  td.ag.y { color: var(--ok); }
+  td.ag.n { color: var(--err); }
+  td.scol { color: var(--score); }
+  td.ncol { color: var(--noul); }
+  #histEmpty { color: var(--muted); font-size: 0.8rem; text-align: center; padding: 14px 0 6px; }
+
+  /* ---- research notes ---- */
+  details.notes summary { cursor: pointer; user-select: none; font-size: 0.85rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; }
+  details.notes summary:hover { color: var(--score); }
+  details.notes .body { font-size: 0.78rem; color: var(--text); margin-top: 10px; }
+  details.notes .body h3 { font-size: 0.78rem; margin: 14px 0 4px; color: var(--score); }
+  details.notes .body h3:first-child { margin-top: 4px; }
+  details.notes .body ul { margin: 4px 0; padding-left: 18px; }
+  details.notes .body li { margin: 2px 0; }
+  details.notes code { font-family: var(--mono); background: #f0ede1; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+  footer { text-align: center; font-size: 0.7rem; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Turing <span class="q">Complete?</span></h1>
+    <div class="sub">
+      Describe a computational system, language, or machine. Two question types race on the same
+      state — a <code>score</code> question on a five-level completeness scale and a
+      <code>noul</code> question for the probability of yes — and their verdicts and RTTs are compared.
+    </div>
+    <div class="tape" id="tape"></div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
+    <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+    <details class="adv">
+      <summary>Advanced (endpoint / model)</summary>
+      <label for="endpoint" style="margin-top:8px">Endpoint</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">Model</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Prompt ============ -->
+  <div class="card">
+    <label for="prompt">System description — the prompt becomes <code>state.description</code></label>
+    <textarea id="prompt" placeholder="e.g. Brainfuck: eight commands &gt; &lt; + - . , [ ] operating on an unbounded tape of cells"></textarea>
+    <div class="chips" id="chips"></div>
+    <div class="promptrow">
+      <div class="grow hint">
+        Live judging fires <code>180 ms</code> after your last keystroke — same cadence as study-0003.
+        Each pause sends one request <em>pair</em> on identical state; superseded responses are discarded (latest-wins).
+      </div>
+      <label class="livechk"><input type="checkbox" id="live" checked> live</label>
+      <button id="btnJudge" class="primary">Judge</button>
+      <button id="btnReset">Reset stats</button>
+    </div>
+  </div>
+
+  <!-- ============ Live stats strip ============ -->
+  <div class="statsbar">
+    <span><span class="k">state</span> <span id="stState">idle</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">in-flight</span> <span id="stInflight">0</span></span>
+    <span><span class="k">pairs</span> <span id="stPairs">0</span></span>
+    <span><span class="k">stale</span> <span id="stStale">0</span></span>
+    <span><span class="k">errors</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Consensus axis ============ -->
+  <div class="card">
+    <div class="axishead">
+      <h2>TURING-COMPLETENESS AXIS</h2>
+      <span id="agreeBadge">awaiting verdicts</span>
+    </div>
+    <div class="axis" id="axis">
+      <div class="rail"></div>
+      <div class="tick t50"></div>
+      <div class="marker mscore" id="mScore"><span class="pin">score --</span><div class="stem"></div></div>
+      <div class="marker mnoul" id="mNoul"><div class="stem"></div><span class="pin">noul --</span></div>
+      <span class="lbl l0">NOT TURING-COMPLETE</span>
+      <span class="lbl l50">UNCLEAR</span>
+      <span class="lbl l100">TURING-COMPLETE</span>
+    </div>
+    <div id="consensus"></div>
+  </div>
+
+  <!-- ============ Side-by-side results ============ -->
+  <div class="duo">
+    <div class="card score-side">
+      <div class="sidehead">
+        <h2><span class="tag">SCORE</span> · 5-LEVEL SCALE</h2>
+        <span class="rtt">RTT <b id="sRtt">—</b></span>
+      </div>
+      <div class="verdict"><div class="v" id="sVerdict"><span class="wait">no score yet</span></div></div>
+      <div class="levels" id="sLevels"></div>
+      <div class="perstats">
+        <span><span class="k">n</span> <span id="sN">0</span></span>
+        <span><span class="k">mean</span> <span id="sMean">—</span></span>
+        <span><span class="k">min</span> <span id="sMin">—</span></span>
+        <span><span class="k">max</span> <span id="sMax">—</span></span>
+        <span><span class="k">score</span> <span id="sVal">—</span></span>
+        <span><span class="k">conf</span> <span id="sConf">—</span></span>
+        <span><span class="k">tokens</span> <span id="sTok">—</span></span>
+      </div>
+    </div>
+    <div class="card noul-side">
+      <div class="sidehead">
+        <h2><span class="tag">NOUL</span> · P(yes)</h2>
+        <span class="rtt">RTT <b id="nRtt">—</b></span>
+      </div>
+      <div class="verdict"><div class="v" id="nVerdict"><span class="wait">no noul yet</span></div></div>
+      <div class="gauge"><div id="nFill" style="width:0%"></div><div class="mid"></div></div>
+      <div class="gaugelbls"><span>0 — certainly not</span><span>1 — certainly yes</span></div>
+      <div class="perstats">
+        <span><span class="k">n</span> <span id="nN">0</span></span>
+        <span><span class="k">mean</span> <span id="nMean">—</span></span>
+        <span><span class="k">min</span> <span id="nMin">—</span></span>
+        <span><span class="k">max</span> <span id="nMax">—</span></span>
+        <span><span class="k">P(yes)</span> <span id="nVal">—</span></span>
+        <span><span class="k">tokens</span> <span id="nTok">—</span></span>
+      </div>
+    </div>
+  </div>
+  <div id="errline"></div>
+
+  <!-- ============ History ============ -->
+  <div class="card">
+    <div class="histhead" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <h2>PAIRED HISTORY</h2>
+      <span class="hint">latest 12 complete pairs</span>
+    </div>
+    <div id="histEmpty">No judgments yet — describe a system above.</div>
+    <table class="hist" id="hist" style="display:none">
+      <thead>
+        <tr>
+          <th>#</th><th>prompt</th><th>noul P(yes)</th><th>score</th><th>top level</th>
+          <th>noul RTT</th><th>score RTT</th><th>Δ</th><th>agree?</th>
+        </tr>
+      </thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+
+  <!-- ============ Research notes ============ -->
+  <details class="notes card">
+    <summary>RESEARCH NOTES — what “Turing complete” means</summary>
+    <div class="body">
+      <h3>Definition</h3>
+      <ul>
+        <li>A system of data-manipulation rules (a language, machine, instruction set, cellular automaton…) is <b>Turing-complete</b> if it can simulate an arbitrary Turing machine — equivalently, if it can compute every Turing-computable function (Church–Turing thesis).</li>
+        <li>To prove completeness it suffices to simulate any one known-complete system: a universal Turing machine, a two-counter (Minsky) machine, a cyclic-tag system, Rule 110, or the lambda calculus.</li>
+      </ul>
+      <h3>Practical ingredients</h3>
+      <ul>
+        <li><b>Sequencing + conditional branching</b> — execute blocks in order and pick between two paths on a condition.</li>
+        <li><b>Unbounded repetition</b> — while-loops, recursion, self-reapplication, or any mechanism that can run forever. A system that <i>guarantees termination</i> (a “total” language like Dhall or the total fragments of Coq/Agda) cannot be Turing-complete.</li>
+        <li><b>Unbounded read/write storage</b> — memory with no fixed a-priori bound: a tape, a heap, two stacks, growing lists. One pushdown stack alone is not enough (that yields only context-free power); two stacks suffice.</li>
+      </ul>
+      <h3>Caveats when judging</h3>
+      <ul>
+        <li><b>Unbounded ≠ infinite.</b> No physical machine is strictly Turing-complete (all have finite memory — technically they are linear-bounded automata). The convention is to judge the abstract model as if memory were unbounded, so real computers count.</li>
+        <li><b>Bounded variants.</b> Fixed-size tapes/grids or fixed-width integers make a system formally not complete, yet it is conventionally called complete (e.g. real C with bounded pointers, Befunge-93’s 80×25 grid).</li>
+        <li><b>Externally driven systems.</b> HTML+CSS3 can run Rule 110 but only with a human clicking to step generations; the C preprocessor needs its output re-fed in a loop. These are “complete when externally iterated” — a gray zone.</li>
+        <li><b>Property of the model, not the program.</b> A single terminating program is not Turing-complete; the language or machine it runs on may be.</li>
+        <li><b>Undecidability.</b> Deciding whether an arbitrary system is Turing-complete is itself undecidable — any verdict here is calibrated inference, not a proof.</li>
+      </ul>
+      <h3>Reference points</h3>
+      <ul>
+        <li><b>Turing-complete:</b> general-purpose languages, brainfuck, Conway’s Game of Life, Rule 110, Excel, Minecraft redstone, Factorio, Dwarf Fortress, Magic: The Gathering, PowerPoint animations, C++ templates, the TypeScript/Scala/Java type systems, sed/awk, <code>printf</code> format strings, x86 MMU page-fault handling, PostScript, SQL with recursive CTEs, Apache mod_rewrite, Wang tiles, (infinite) Minesweeper, Vim normal mode.</li>
+        <li><b>Not Turing-complete:</b> finite-state automata, classic regular expressions, a single-stack pushdown automaton (context-free), straight-line arithmetic, propositional logic, static markup/data formats (HTML alone, JSON, Markdown), SQL-92 without recursion, XPath 1.0, total languages (Dhall, Charity), early CSS alone.</li>
+      </ul>
+      <h3>How this page asks</h3>
+      <ul>
+        <li><code>score</code> — rates the description on five ordered levels from “clearly not” to “clearly”; the answer carries a continuous score (0–4), a probability per level, and confidence. Normalized to 0–1 as <code>score/4</code>.</li>
+        <li><code>noul</code> — answers “is it Turing-complete?” as the probability of yes, already on 0–1.</li>
+        <li>Both requests are fired in parallel with identical <code>state</code>; each round-trip is timed independently with <code>performance.now()</code>, so verdicts and RTT are directly comparable. Verdicts “agree” when both land on the same side of 0.5.</li>
+      </ul>
+    </div>
+  </details>
+
+  <footer>study-0005-turing — TypeSafe System One API · score vs noul</footer>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const DEBOUNCE_MS = 180;      // same live per-keystroke cadence as study-0003
+const $ = id => document.getElementById(id);
+
+// ============ Decorative tape ============
+(function tape() {
+  const cells = ["…", "0", "1", "1", "0", "B", "1", "B", "0", "1", "…"];
+  const headAt = 5;
+  $("tape").innerHTML = cells.map((c, i) =>
+    `<span${i === headAt ? ' class="head"' : ""}>${c}</span>`).join("");
+})();
+
+// ============ Questions (research-grounded wording) ============
+const STATE_TASK =
+  "Decide whether the system described in `description` is Turing complete — whether it can simulate an " +
+  "arbitrary Turing machine (equivalently, compute every Turing-computable function) given unbounded memory " +
+  "and unbounded time.";
+
+const SCORE_LEVELS = [
+  "Clearly not Turing complete — bounded finite-state behavior or guaranteed termination (e.g. a finite automaton, classic regular expressions, a single pushdown stack, a total language, static markup, straight-line arithmetic)",
+  "Probably not Turing complete — appears to lack unbounded storage, conditional branching, or arbitrary repetition, though the description leaves some doubt",
+  "Indeterminate — ambiguous, self-contradictory, or too little detail to judge",
+  "Probably Turing complete — has the ingredients for universality (unbounded read/write storage, conditional branching, unbounded iteration or recursion) or is known-complete modulo realistic resource bounds",
+  "Clearly Turing complete — can simulate a universal Turing machine or a known-complete system (e.g. brainfuck, Conway's Game of Life, Rule 110, two-counter machines, C++ templates, SQL with recursive CTEs)",
+];
+
+const QUESTIONS = {
+  score: {
+    tc: {
+      type: "score",
+      instructions:
+        "How Turing-complete is the system described in `description`? Judge the abstract model, not any single " +
+        "program or physical realization: finite memory in a real implementation does not count against it, but a " +
+        "fixed bound baked into the model does. Completeness requires conditional branching, unbounded read/write " +
+        "storage, and unbounded repetition; guaranteed termination or a single stack means it is not complete. " +
+        "Systems that are complete only when driven externally (e.g. HTML+CSS stepped by clicks) are borderline.",
+      criteria: SCORE_LEVELS,
+    },
+  },
+  noul: {
+    tc: {
+      type: "noul",
+      instructions:
+        "Is the system described in `description` Turing complete — can it simulate an arbitrary Turing machine " +
+        "given unbounded (finite-at-any-instant) storage and unbounded time? Return the probability of yes. " +
+        "Turing completeness is a property of the model or language, not of any single finite program run.",
+      criteria: {
+        true:
+          "It provides conditional branching plus unbounded read/write storage plus unbounded iteration or " +
+          "recursion — or equivalently can simulate a known-complete system (universal TM, two-counter machine, " +
+          "cyclic-tag, Rule 110, lambda calculus). Finite memory in any physical realization does not disqualify it.",
+        false:
+          "It is limited to finite state or guaranteed termination — e.g. finite automata, classic regular " +
+          "expressions, a single pushdown stack, total languages, static markup or data formats, straight-line " +
+          "arithmetic — or the description is too thin or meaningless to affirm completeness.",
+      },
+    },
+  },
+};
+
+// ============ Example prompts ============
+const EXAMPLES = [
+  ["brainfuck", "Brainfuck: eight commands > < + - . , [ ] operating on an unbounded tape of cells"],
+  ["Game of Life", "Conway's Game of Life on an infinite two-dimensional grid"],
+  ["regex", "Classic regular expressions: concatenation, alternation, Kleene star"],
+  ["one stack", "A pushdown automaton with a single stack"],
+  ["two stacks", "A pushdown automaton with two independent stacks"],
+  ["total language", "Dhall: a configuration language that guarantees every program terminates"],
+  ["recursive SQL", "SQL with WITH RECURSIVE common table expressions"],
+  ["HTML+CSS+clicks", "HTML + CSS3 driven by a human clicking to advance each generation (Rule 110)"],
+  ["TS types", "TypeScript's type system with conditional types and generics"],
+  ["single program", "A single Python program that prints 42 and halts"],
+];
+$("chips").innerHTML = EXAMPLES.map(([label], i) =>
+  `<span class="chip" data-i="${i}">${label}</span>`).join("");
+$("chips").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  $("prompt").value = EXAMPLES[+chip.dataset.i][1];
+  $("prompt").dispatchEvent(new Event("input"));
+  $("prompt").focus();
+});
+
+// ============ Endpoint init ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "Via serve.py, /api/* is proxied to api.typesafe.ai. A direct URL is blocked by CORS in the browser."
+    : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
+})();
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+});
+
+// ============ Judging (debounced per keystroke, latest-wins) ============
+let seq = 0;
+let inFlight = 0;
+let stale = 0;
+const pending = new Map();      // seq -> {score?, noul?, prompt}
+const hist = [];
+const rtts = { score: [], noul: [] };
+const errs = { score: 0, noul: 0 };
+let lastVerdicts = { score: null, noul: null };  // {norm, label}
+
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("sending") ? "live" : "";
+  $("stInflight").textContent = inFlight;
+  $("stPairs").textContent = hist.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errs.score + errs.noul;
+}
+
+function resetStats() {
+  rtts.score.length = rtts.noul.length = 0;
+  errs.score = errs.noul = 0;
+  hist.length = 0;
+  stale = 0;
+  lastVerdicts.score = lastVerdicts.noul = null;
+  renderSideStats("score"); renderSideStats("noul");
+  $("sRtt").textContent = "—"; $("nRtt").textContent = "—";
+  $("sVal").textContent = "—"; $("sConf").textContent = "—"; $("sTok").textContent = "—";
+  $("nVal").textContent = "—"; $("nTok").textContent = "—";
+  $("sVerdict").innerHTML = '<span class="wait">no score yet</span>';
+  $("nVerdict").innerHTML = '<span class="wait">no noul yet</span>';
+  $("sLevels").innerHTML = "";
+  $("nFill").style.width = "0%";
+  placeMarkers();
+  $("histBody").innerHTML = "";
+  $("hist").style.display = "none";
+  $("histEmpty").style.display = "block";
+  setState("idle");
+}
+$("btnReset").addEventListener("click", resetStats);
+
+let debTimer = null;
+$("prompt").addEventListener("input", () => {
+  clearTimeout(debTimer);
+  if (!$("live").checked) return;
+  const p = $("prompt").value.trim();
+  if (!p) { setState("idle"); return; }
+  setState("typing…");
+  debTimer = setTimeout(() => judge(p), DEBOUNCE_MS);
+});
+$("btnJudge").addEventListener("click", () => {
+  clearTimeout(debTimer);
+  const p = $("prompt").value.trim();
+  if (!p) { err("Describe the system first."); return; }
+  judge(p);
+});
+
+function err(msg) {
+  $("errline").textContent = msg;
+  $("errline").style.display = "block";
+}
+
+async function callOne(kind, prompt, mySeq) {
+  const key = $("apiKey").value.trim();
+  const payload = {
+    state: { task: STATE_TASK, description: prompt },
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS[kind],
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    return { kind, ms: performance.now() - t0, error: `request failed: ${e}` +
+      (e instanceof TypeError ? " — possibly CORS; serve via python3 serve.py" : "") };
+  }
+  const ms = performance.now() - t0;
+  let json;
+  try { json = JSON.parse(body); }
+  catch { return { kind, ms, error: `HTTP ${resp.status}: non-JSON — ${body.slice(0, 200)}` }; }
+  if (!resp.ok || !json.answers || !json.answers.tc) {
+    return { kind, ms, error: `HTTP ${resp.status} — ${body.slice(0, 200)}` };
+  }
+  return { kind, ms, answer: json.answers.tc, usage: json.usage };
+}
+
+function judge(prompt) {
+  const key = $("apiKey").value.trim();
+  if (!key) { err("Enter an API key first."); return; }
+  $("errline").style.display = "none";
+  const mySeq = ++seq;
+  pending.set(mySeq, { prompt });
+  inFlight += 2;
+  setState(`sending (${inFlight})`);
+  for (const kind of ["score", "noul"]) {
+    callOne(kind, prompt, mySeq).then(res => {
+      inFlight--;
+      rtts[kind].push(res.ms);
+      if (mySeq !== seq) {                 // superseded — keep the RTT sample, drop the verdict
+        stale++;
+        pending.delete(mySeq);
+        renderSideStats(kind);
+        setState(inFlight > 0 ? `sending (${inFlight})` : "done");
+        return;
+      }
+      if (res.error) {
+        errs[kind]++;
+        err(`[${kind}] ${res.error}`);
+        pending.get(mySeq)[kind] = { error: true };
+      } else {
+        pending.get(mySeq)[kind] = res;
+        if (kind === "score") renderScore(res.answer, res.ms, res.usage);
+        else renderNoul(res.answer, res.ms, res.usage);
+      }
+      renderSideStats(kind);
+      const p = pending.get(mySeq);
+      if (p && p.score && p.noul) {        // both arrived — finalize the pair
+        finalizePair(mySeq, p);
+        pending.delete(mySeq);
+      }
+      setState(inFlight > 0 ? `sending (${inFlight})` : "done");
+    });
+  }
+}
+
+// ============ Rendering: sides ============
+const LEVEL_SHORT = ["clearly not", "probably not", "indeterminate", "probably TC", "clearly TC"];
+
+function renderScore(ans, ms, usage) {
+  $("sRtt").textContent = ms.toFixed(0) + "ms";
+  const probs = ans.probabilities || {};
+  const score = typeof ans.score === "number" ? ans.score : null;
+  const topIx = Object.entries(probs).sort((a, b) => b[1] - a[1])[0];
+  $("sVal").textContent = score == null ? "—" : score.toFixed(2) + " / 4";
+  $("sConf").textContent = typeof ans.confidence === "number" ? (ans.confidence * 100).toFixed(0) + "%" : "—";
+  if (usage) $("sTok").textContent = `${usage.input_tokens}/${usage.output_tokens}`;
+
+  const lvl = score == null ? null : Math.max(0, Math.min(4, Math.round(score)));
+  const conf = typeof ans.confidence === "number" ? (ans.confidence * 100).toFixed(0) + "%" : "—";
+  $("sVerdict").innerHTML = score == null
+    ? `<span class="wait">malformed score answer</span>`
+    : `${LEVEL_SHORT[lvl].toUpperCase()}<small>score ${score.toFixed(2)}/4 · top level ${topIx ? topIx[0] : "—"} · confidence ${conf}</small>`;
+
+  $("sLevels").innerHTML = SCORE_LEVELS.map((full, i) => {
+    const p = probs[i] || 0;
+    return `<div class="lvl${topIx && +topIx[0] === i ? " top" : ""}" title="${full}">
+      <span class="ix">${i}</span><span class="nm">${LEVEL_SHORT[i]}</span><span class="pc">${(p * 100).toFixed(0)}%</span>
+      <span class="lb"><div style="width:${(p * 100).toFixed(1)}%"></div></span>
+    </div>`;
+  }).join("");
+
+  lastVerdicts.score = score == null ? null : { norm: score / 4, label: LEVEL_SHORT[lvl] };
+  placeMarkers();
+}
+
+function renderNoul(ans, ms, usage) {
+  $("nRtt").textContent = ms.toFixed(0) + "ms";
+  const p = typeof ans.noul === "number" ? ans.noul : null;
+  if (p == null) {
+    $("nVerdict").innerHTML = `<span class="wait">malformed noul answer</span>`;
+    lastVerdicts.noul = null;
+    placeMarkers();
+    return;
+  }
+  $("nFill").style.width = (p * 100).toFixed(1) + "%";
+  $("nVal").textContent = p.toFixed(2);
+  if (usage) $("nTok").textContent = `${usage.input_tokens}/${usage.output_tokens}`;
+  const verdict = p >= 0.5 ? "YES — TURING-COMPLETE" : "NO — NOT TURING-COMPLETE";
+  $("nVerdict").innerHTML = `${verdict}<small>P(yes) = ${p.toFixed(2)}</small>`;
+  lastVerdicts.noul = { norm: p, label: p >= 0.5 ? "TC" : "not TC" };
+  placeMarkers();
+}
+
+function placeMarkers() {
+  const s = lastVerdicts.score, n = lastVerdicts.noul;
+  const ms = $("mScore"), mn = $("mNoul");
+  if (s) {
+    ms.style.display = "block";
+    ms.style.left = (s.norm * 100).toFixed(1) + "%";
+    ms.querySelector(".pin").textContent = "score " + s.norm.toFixed(2);
+  } else ms.style.display = "none";
+  if (n) {
+    mn.style.display = "block";
+    mn.style.left = (n.norm * 100).toFixed(1) + "%";
+    mn.querySelector(".pin").textContent = "noul " + n.norm.toFixed(2);
+  } else mn.style.display = "none";
+  updateConsensus();
+}
+
+function updateConsensus() {
+  const s = lastVerdicts.score, n = lastVerdicts.noul;
+  const badge = $("agreeBadge"), con = $("consensus");
+  if (!s && !n) { badge.textContent = "awaiting verdicts"; badge.className = ""; con.textContent = ""; return; }
+  if (!s || !n) {
+    badge.textContent = "partial";
+    badge.className = "";
+    const v = s || n, who = s ? "score" : "noul";
+    con.innerHTML = `Only <strong>${who}</strong> has answered so far — ${s ? s.label : "P(yes) " + n.norm.toFixed(2)}.`;
+    return;
+  }
+  const sTc = s.norm >= 0.5, nTc = n.norm >= 0.5;
+  if (sTc === nTc) {
+    badge.textContent = "AGREE";
+    badge.className = "agree";
+    con.innerHTML = `Both lean <strong>${sTc ? "TURING-COMPLETE" : "not Turing-complete"}</strong> — ` +
+      `score ${s.norm.toFixed(2)} · noul ${n.norm.toFixed(2)} (|Δ| ${Math.abs(s.norm - n.norm).toFixed(2)}).`;
+  } else {
+    badge.textContent = "DISAGREE";
+    badge.className = "disagree";
+    con.innerHTML = `<strong>score</strong> says ${s.label} (${s.norm.toFixed(2)}) but ` +
+      `<strong>noul</strong> says ${n.label} (${n.norm.toFixed(2)}).`;
+  }
+}
+
+// ============ Rendering: stats + history ============
+function renderSideStats(kind) {
+  const a = rtts[kind], pre = kind === "score" ? "s" : "n";
+  $(pre + "N").textContent = a.length + (errs[kind] ? ` (+${errs[kind]} err)` : "");
+  if (!a.length) return;
+  const mean = a.reduce((x, y) => x + y, 0) / a.length;
+  $(pre + "Mean").textContent = mean.toFixed(0) + "ms";
+  $(pre + "Min").textContent = Math.min(...a).toFixed(0) + "ms";
+  $(pre + "Max").textContent = Math.max(...a).toFixed(0) + "ms";
+}
+
+function finalizePair(mySeq, p) {
+  const sOk = !p.score.error, nOk = !p.noul.error;
+  if (!sOk && !nOk) return;                       // both failed — nothing to compare
+  const sn = sOk && typeof p.score.answer.score === "number" ? p.score.answer.score / 4 : null;
+  const nn = nOk && typeof p.noul.answer.noul === "number" ? p.noul.answer.noul : null;
+  const agree = sn == null || nn == null ? null : (sn >= 0.5) === (nn >= 0.5);
+  hist.unshift({
+    i: mySeq, prompt: p.prompt,
+    noul: nn, score: sn,
+    topLevel: sOk && p.score.answer.probabilities
+      ? Object.entries(p.score.answer.probabilities).sort((a, b) => b[1] - a[1])[0][0]
+      : null,
+    sMs: sOk ? p.score.ms : null,
+    nMs: nOk ? p.noul.ms : null,
+    agree,
+  });
+  if (hist.length > 12) hist.pop();
+  renderHist();
+}
+
+function renderHist() {
+  $("histEmpty").style.display = hist.length ? "none" : "block";
+  $("hist").style.display = hist.length ? "table" : "none";
+  $("histBody").innerHTML = hist.map(h => {
+    const delta = h.sMs != null && h.nMs != null ? Math.abs(h.sMs - h.nMs) : null;
+    const who = delta == null ? "" : (h.sMs < h.nMs ? "s" : "n");
+    return `<tr>
+      <td>${h.i}</td>
+      <td class="pr" title="${h.prompt.replace(/"/g, "&quot;")}">${h.prompt.slice(0, 42)}</td>
+      <td class="ncol">${h.noul == null ? "err" : h.noul.toFixed(2)}</td>
+      <td class="scol">${h.score == null ? "err" : h.score.toFixed(2)}</td>
+      <td class="scol">${h.topLevel == null ? "—" : "L" + h.topLevel}</td>
+      <td class="ncol">${h.nMs == null ? "—" : h.nMs.toFixed(0) + "ms"}</td>
+      <td class="scol">${h.sMs == null ? "—" : h.sMs.toFixed(0) + "ms"}</td>
+      <td>${delta == null ? "—" : delta.toFixed(0) + "ms " + who}</td>
+      <td class="ag ${h.agree == null ? "" : h.agree ? "y" : "n"}">${h.agree == null ? "—" : h.agree ? "yes" : "NO"}</td>
+    </tr>`;
+  }).join("");
+}
+</script>
+</body>
+</html>
