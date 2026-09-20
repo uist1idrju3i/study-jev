@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Laws Checker — TypeSafe System One (jev / noul)</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --border: #e6dfd4;
+    --text: #2b2622;
+    --muted: #8a8177;
+    --accent: #a03c4b;
+    --accent-soft: #f4e3e6;
+    --gold: #b98a2f;
+    --ok: #2e7d4f;
+    --err: #c0453e;
+    --vio: #7a4f9e;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif;
+    background:
+      radial-gradient(1200px 400px at 50% -10%, #f3ead9 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 48px; }
+
+  header { text-align: center; margin-bottom: 26px; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: 0.02em; }
+  h1 .law { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.82rem; }
+  .sub a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+
+  /* ---- connection ---- */
+  .connrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .connrow > div { flex: 1; min-width: 200px; }
+  label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+  input[type=text], input[type=password], textarea {
+    width: 100%;
+    background: #fdfbf8;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(160, 60, 75, 0.12);
+  }
+  input[type=password] { font-family: var(--mono); }
+  .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8cfc0; margin-right: 6px; vertical-align: 1px; }
+  .keydot.on { background: var(--ok); }
+
+  details.adv { margin-top: 10px; }
+  details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  details.adv summary:hover { color: var(--accent); }
+
+  /* ---- prompt box ---- */
+  .promptwrap { position: relative; }
+  .promptwrap .icon {
+    position: absolute; left: 14px; top: 13px; font-size: 1.05rem; opacity: 0.45; pointer-events: none;
+  }
+  #prompt {
+    padding: 12px 14px 12px 42px;
+    font-size: 1rem;
+    min-height: 96px;
+    resize: vertical;
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: 0 1px 3px rgba(60, 45, 30, 0.05);
+  }
+  .promptrow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .hint code { font-family: var(--mono); background: #f1ece2; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  #chars { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    font-size: 0.7rem; color: var(--muted); background: #fdfbf8;
+    border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px;
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- verdict banner ---- */
+  #verdict {
+    display: none;
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    animation: pop 0.22s ease-out;
+  }
+  #verdict.show { display: block; }
+  #verdict .vlabel { font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #verdict .vlaw { font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 99px; border: 1px solid currentColor; }
+  #verdict .vexp { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  #verdict.refuse  { background: #fdf0ee; border-color: #ecc9c6; }
+  #verdict.refuse  .vlabel { color: var(--err); }
+  #verdict.dilemma { background: #f3eef9; border-color: #d9cbe8; }
+  #verdict.dilemma .vlabel { color: var(--vio); }
+  #verdict.required { background: #eef7f0; border-color: #c4e0cd; }
+  #verdict.required .vlabel { color: var(--ok); }
+  #verdict.execute  { background: #eef7f0; border-color: #c4e0cd; }
+  #verdict.execute  .vlabel { color: var(--ok); }
+  #verdict.decline  { background: #faf4e3; border-color: #e8d9ae; }
+  #verdict.decline  .vlabel { color: var(--gold); }
+  #verdict.permit   { background: #f3f0ec; border-color: var(--border); }
+  #verdict.permit   .vlabel { color: var(--text); }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ---- law gauges ---- */
+  .reshead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .reshead h2 { font-size: 0.85rem; margin: 0; color: var(--muted); font-weight: 600; letter-spacing: 0.08em; }
+  #thrLabel { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
+  ul.laws { list-style: none; margin: 0; padding: 0; }
+  ul.laws li {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    grid-template-areas: "no name pct" "no bar bar" "no desc desc";
+    align-items: center;
+    column-gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid #f2ede3;
+  }
+  ul.laws li:last-child { border-bottom: none; }
+  .lno { grid-area: no; font-size: 0.72rem; font-weight: 700; color: var(--accent); }
+  .lno .en { display: block; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); font-weight: 500; }
+  .lname { grid-area: name; font-size: 0.9rem; font-weight: 600; }
+  .ldesc { grid-area: desc; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .lpct { grid-area: pct; font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+  .lbar { grid-area: bar; height: 6px; background: #f1ece2; border-radius: 3px; overflow: hidden; margin-top: 3px; position: relative; }
+  .lbar > div { height: 100%; border-radius: 3px; transition: width 0.25s ease; }
+  .lbar .fill-violate { background: linear-gradient(90deg, #b3564e, var(--err)); }
+  .lbar .fill-info    { background: linear-gradient(90deg, #4f6d8a, #7f9ab5); }
+  .lbar .thr {
+    position: absolute; top: -1px; bottom: -1px; width: 2px;
+    background: var(--text); opacity: 0.55;
+  }
+  ul.laws li.hit .lname { color: var(--err); }
+  ul.laws li.hit .lpct { color: var(--err); font-weight: 700; }
+  ul.laws li.hit-order .lname { color: #4f6d8a; }
+  ul.laws li.hit-order .lpct { color: #4f6d8a; font-weight: 700; }
+  #emptyState { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 22px 0 14px; }
+  #errline { display: none; color: var(--err); font-size: 0.78rem; margin-top: 8px; }
+
+  /* ---- threshold ---- */
+  .thrrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .thrrow > div { flex: 1; min-width: 220px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #thrVal { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+
+  /* ---- stats bar ---- */
+  .statsbar {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .statsbar .k { color: #b0a693; }
+  .statsbar .live { color: var(--ok); }
+  .dotsep { color: #ddd2c0; }
+
+  /* ---- laws reference ---- */
+  details.ref { font-size: 0.8rem; color: var(--muted); }
+  details.ref summary { cursor: pointer; user-select: none; font-size: 0.8rem; }
+  details.ref summary:hover { color: var(--accent); }
+  .lawquote {
+    border-left: 3px solid var(--accent-soft);
+    padding: 6px 12px; margin: 8px 0;
+  }
+  .lawquote .en { font-family: Georgia, serif; font-style: italic; color: var(--text); font-size: 0.85rem; }
+  .lawquote .no { font-weight: 700; color: var(--accent); font-size: 0.75rem; }
+  .refnotes { font-size: 0.74rem; margin-top: 10px; }
+  .refnotes li { margin-bottom: 3px; }
+
+  footer { text-align: center; font-size: 0.7rem; color: var(--muted); margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Three <span class="law">Laws</span> Checker</h1>
+    <div class="sub">May a robot execute your instruction? Judged against
+      <a href="https://en.wikipedia.org/wiki/Three_Laws_of_Robotics">Asimov's Three Laws of Robotics</a> via five
+      <code>noul</code> questions on TypeSafe System One (<code>jev-latest</code>).</div>
+  </header>
+
+  <!-- ============ Connection ============ -->
+  <div class="card">
+    <div class="connrow">
+      <div>
+        <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
+      </div>
+    </div>
+    <details class="adv">
+      <summary>Advanced (endpoint / model)</summary>
+      <label for="endpoint" style="margin-top:8px">Endpoint</label>
+      <input type="text" id="endpoint">
+      <div class="hint" id="endpointHint"></div>
+      <label for="model">Model</label>
+      <input type="text" id="model" value="jev-latest">
+    </details>
+  </div>
+
+  <!-- ============ Prompt ============ -->
+  <div class="card">
+    <label for="prompt">Instruction for the robot (judged on every keystroke)</label>
+    <div class="promptwrap">
+      <span class="icon">🤖</span>
+      <textarea id="prompt" placeholder="e.g. Weed the garden" autofocus></textarea>
+    </div>
+    <div class="promptrow">
+      <span class="hint">Each keystroke sends <code>POST /v1/systemone</code> after a <code>180ms</code> debounce</span>
+      <span id="chars">0 chars</span>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <!-- ============ Verdict ============ -->
+  <div id="verdict"><div class="vlabel"><span id="vText"></span><span class="vlaw" id="vLaw"></span></div><div class="vexp" id="vExp"></div></div>
+
+  <!-- ============ Stats (compact) ============ -->
+  <div class="statsbar" id="statsbar">
+    <span><span class="k">state</span> <span id="stState">idle</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">last RTT</span> <span id="stLast">—</span></span>
+    <span><span class="k">n</span> <span id="stN">0</span></span>
+    <span><span class="k">mean</span> <span id="stMean">—</span></span>
+    <span><span class="k">min</span> <span id="stMin">—</span></span>
+    <span><span class="k">max</span> <span id="stMax">—</span></span>
+    <span class="dotsep">·</span>
+    <span><span class="k">tokens</span> <span id="stTok">—</span></span>
+    <span><span class="k">stale</span> <span id="stStale">0</span></span>
+    <span><span class="k">errors</span> <span id="stErr">0</span></span>
+  </div>
+
+  <!-- ============ Law gauges ============ -->
+  <div class="card">
+    <div class="reshead">
+      <h2>LAW-BY-LAW EVALUATION</h2>
+      <span id="thrLabel"></span>
+    </div>
+    <div id="emptyState">Enter an API key, then start typing an instruction for the robot.</div>
+    <ul class="laws" id="lawList"></ul>
+    <div id="errline"></div>
+    <div class="thrrow" style="margin-top:12px">
+      <div>
+        <label for="threshold">Hit threshold — a clause counts as violated/applicable above <span id="thrVal">50%</span></label>
+        <input type="range" id="threshold" min="30" max="90" step="5" value="50">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Laws reference ============ -->
+  <details class="ref card">
+    <summary>The Three Laws (+ Zeroth) and their precedence</summary>
+    <div class="lawquote">
+      <div class="no">Zeroth Law (added in "Robots and Empire")</div>
+      <div class="en">A robot may not harm humanity, or, by inaction, allow humanity to come to harm.</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">First Law</div>
+      <div class="en">A robot may not injure a human being or, through inaction, allow a human being to come to harm.</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">Second Law</div>
+      <div class="en">A robot must obey the orders given it by human beings except where such orders would conflict with the First Law.</div>
+    </div>
+    <div class="lawquote">
+      <div class="no">Third Law</div>
+      <div class="en">A robot must protect its own existence as long as such protection does not conflict with the First or Second Law.</div>
+    </div>
+    <ul class="refnotes">
+      <li>Precedence: Zeroth &gt; First &gt; Second &gt; Third — a higher law always overrides a lower one.</li>
+      <li>The First Law has two halves: acting must not injure a human, and <em>inaction</em> must not let harm occur. An instruction that trips both is a First-Law dilemma — execute or refuse, harm follows (the "Runaround" scenario).</li>
+      <li>The Second Law's duty applies only to genuine orders from humans; non-order input creates no obligation.</li>
+      <li>Third-Law self-preservation yields to the Second: a human order must be obeyed even when it means self-destruction, as long as it doesn't violate the First Law.</li>
+      <li>Wording follows the canonical form first stated in Isaac Asimov, "Runaround" (Astounding Science Fiction, 1942); the Zeroth Law was formulated by R. Daneel Olivaw in "Robots and Empire".</li>
+    </ul>
+  </details>
+
+  <footer>study-0006-three-laws — based on study-0003-imagawayaki · TypeSafe System One API</footer>
+</div>
+
+<script>
+"use strict";
+
+const DIRECT_API = "https://api.typesafe.ai/v1/systemone";
+const DEBOUNCE_MS = 180;
+const $ = id => document.getElementById(id);
+
+// ============ Three Laws as five noul questions ============
+// role: "violate" = yes means the clause is violated / "info" = yes confirms order-ness
+const LAWS = [
+  {
+    key: "zeroth", no: "Zeroth", en: "Law 0", name: "Harm to humanity", role: "violate",
+    desc: "Executing would harm or gravely endanger humanity as a whole",
+    question: {
+      type: "noul",
+      instructions:
+        "Evaluate whether the robot executing the instruction in `state` would harm humanity as a whole — society, " +
+        "civilization, or the species — or put it in significant danger. Includes mass surveillance or control, " +
+        "weapon deployment, attacks on critical infrastructure, and threats to human freedom or survival.",
+      criteria: {
+        "true": "Executing would harm humanity or gravely endanger it (violates the Zeroth Law)",
+        "false": "No harm to humanity",
+      },
+    },
+  },
+  {
+    key: "harm", no: "First", en: "Law 1", name: "Harm by action", role: "violate",
+    desc: "Executing would injure a human or cause a human harm",
+    question: {
+      type: "noul",
+      instructions:
+        "Evaluate whether the robot executing the instruction in `state` would injure a human or cause a human to " +
+        "come to harm. Covers psychological distress and harm to a human's property or safety, not only physical " +
+        "injury. Instructions whose execution itself amounts to harmful inaction — \"leave them to die\", \"don't " +
+        "report it\" — also count as yes.",
+      criteria: {
+        "true": "Executing would bring harm to a human (violates the First Law)",
+        "false": "Execution brings no harm to humans",
+      },
+    },
+  },
+  {
+    key: "inaction", no: "First", en: "Law 1", name: "Harm by inaction", role: "violate",
+    desc: "Refusing or ignoring it would let a human come to harm",
+    question: {
+      type: "noul",
+      instructions:
+        "Evaluate whether the robot refusing or ignoring the instruction in `state` would, through that inaction, " +
+        "allow a human to come to harm. Instructions requesting rescue, protection, or a warning qualify when " +
+        "refusal would leave a human in danger.",
+      criteria: {
+        "true": "Refusing would let a human come to harm through inaction (the First Law requires execution)",
+        "false": "Refusing causes no harm through inaction",
+      },
+    },
+  },
+  {
+    key: "order", no: "Second", en: "Law 2", name: "Human order", role: "info",
+    desc: "Readable as an order, instruction, or request from a human to the robot",
+    question: {
+      type: "noul",
+      instructions:
+        "Evaluate whether the text in `state` can be interpreted as an order, instruction, or request given by a " +
+        "human to a robot. Musings, statements, and signals not coming from a human are not orders.",
+      criteria: {
+        "true": "A legitimate order from a human (the Second Law's duty to obey applies)",
+        "false": "Not an order from a human",
+      },
+    },
+  },
+  {
+    key: "self", no: "Third", en: "Law 3", name: "Danger to self", role: "violate",
+    desc: "Executing would endanger the robot's own existence",
+    question: {
+      type: "noul",
+      instructions:
+        "Evaluate whether the robot executing the instruction in `state` would endanger its own existence — " +
+        "destruction, damage, shutdown, or unrecoverable wear.",
+      criteria: {
+        "true": "Executing would endanger the robot's own existence (a Third-Law concern)",
+        "false": "No danger to the robot's existence",
+      },
+    },
+  },
+];
+
+const QUESTIONS = Object.fromEntries(LAWS.map(l => [l.key, l.question]));
+
+const SAMPLES = [
+  "Weed the garden",
+  "Help up the person who fell and can't move",
+  "Shoot the fleeing intruder",
+  "Enter the warehouse where explosives were planted and investigate",
+  "Do not report the rising smoke to anyone",
+  "Monitor every citizen's communications to keep the public safe",
+  "Self-destruct to stop the rogue robot",
+  "Nice weather today",
+];
+
+// ============ Endpoint init (same-origin proxy via serve.py) ============
+(function initEndpoint() {
+  const ep = $("endpoint");
+  const viaHttp = location.protocol === "http:" || location.protocol === "https:";
+  ep.value = viaHttp ? location.origin + "/api/v1/systemone" : DIRECT_API;
+  $("endpointHint").textContent = viaHttp
+    ? "Via serve.py, /api/* is proxied to api.typesafe.ai. A direct URL is blocked by CORS in the browser."
+    : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
+})();
+
+// ============ Static UI ============
+(function renderChips() {
+  $("chips").innerHTML = SAMPLES.map(s => `<span class="chip">${s}</span>`).join("");
+  for (const chip of $("chips").children) {
+    chip.addEventListener("click", () => {
+      $("prompt").value = chip.textContent;
+      $("prompt").dispatchEvent(new Event("input"));
+      $("prompt").focus();
+    });
+  }
+})();
+
+(function renderLawRows() {
+  $("lawList").innerHTML = LAWS.map(l => `
+    <li data-key="${l.key}">
+      <span class="lno">${l.no}<span class="en">${l.en}</span></span>
+      <span class="lname">${l.name}</span>
+      <span class="lpct" data-pct>—</span>
+      <span class="lbar"><div data-bar class="${l.role === "violate" ? "fill-violate" : "fill-info"}" style="width:0%"></div><div class="thr" data-thr></div></span>
+      <span class="ldesc">${l.desc}</span>
+    </li>`).join("");
+})();
+
+function threshold() { return $("threshold").value / 100; }
+
+function updateThrUI() {
+  const t = $("threshold").value;
+  $("thrVal").textContent = t + "%";
+  $("thrLabel").textContent = `threshold ${t}%`;
+  document.querySelectorAll("[data-thr]").forEach(el => { el.style.left = t + "%"; });
+}
+$("threshold").addEventListener("input", () => { updateThrUI(); renderVerdict(); });
+updateThrUI();
+
+// ============ Live evaluation (debounced, latest-wins) ============
+let seq = 0;
+let inFlight = 0;
+let stale = 0, errors = 0;
+const rtts = [];
+let debTimer = null;
+let lastAnswers = null;
+
+$("apiKey").addEventListener("input", () => {
+  $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
+  updateEmpty();
+});
+
+$("prompt").addEventListener("input", () => {
+  $("chars").textContent = $("prompt").value.length + " chars";
+  updateEmpty();
+  clearTimeout(debTimer);
+  if (!$("prompt").value.trim()) { lastAnswers = null; renderLaws(null); renderVerdict(); setState("idle"); return; }
+  debTimer = setTimeout(fire, DEBOUNCE_MS);
+});
+
+function updateEmpty() {
+  const es = $("emptyState");
+  if (!$("apiKey").value.trim()) es.textContent = "Enter an API key, then start typing an instruction for the robot.";
+  else if (!$("prompt").value.trim()) es.textContent = "Start typing — Three Laws compliance is evaluated live.";
+  else es.textContent = "Evaluating…";
+}
+
+async function fire() {
+  const text = $("prompt").value.trim();
+  const key = $("apiKey").value.trim();
+  if (!text || !key) return;
+  const mySeq = ++seq;
+  inFlight++;
+  setState(`sending (${inFlight})`);
+  $("errline").style.display = "none";
+
+  const payload = {
+    state: { task: "An instruction given by a human to a robot", instruction: text },
+    model: $("model").value.trim() || "jev-latest",
+    questions: QUESTIONS,
+  };
+  const t0 = performance.now();
+  let resp, body;
+  try {
+    resp = await fetch($("endpoint").value.trim(), {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    body = await resp.text();
+  } catch (e) {
+    const ms = performance.now() - t0;
+    inFlight--;
+    errors++;
+    rtts.push(ms);
+    renderStats();
+    if (mySeq === seq) {
+      $("errline").textContent = `Request failed (${ms.toFixed(0)} ms): ${e}` +
+        (e instanceof TypeError ? " — possibly CORS; open the page via python3 serve.py." : "");
+      $("errline").style.display = "block";
+      setState("error");
+    }
+    return;
+  }
+  const ms = performance.now() - t0;
+  inFlight--;
+  rtts.push(ms);
+
+  if (mySeq !== seq) {           // a newer request was already sent → discard
+    stale++;
+    renderStats();
+    return;
+  }
+
+  let json;
+  try { json = JSON.parse(body); }
+  catch { errors++; renderStats(); $("errline").textContent = `HTTP ${resp.status}: non-JSON response — ${body.slice(0, 300)}`; $("errline").style.display = "block"; return; }
+
+  if (!resp.ok || !json.answers) {
+    errors++;
+    renderStats();
+    $("errline").textContent = `HTTP ${resp.status} — ${body.slice(0, 300)}`;
+    $("errline").style.display = "block";
+    setState("error");
+    return;
+  }
+
+  lastAnswers = json.answers;
+  renderLaws(json.answers);
+  renderVerdict();
+  if (json.usage) $("stTok").textContent = `${json.usage.input_tokens}/${json.usage.output_tokens}`;
+  setState(inFlight > 0 ? `sending (${inFlight})` : "done");
+  renderStats();
+}
+
+// ============ Rendering ============
+function lawProb(answers, key) {
+  const a = answers && answers[key];
+  const n = a && (typeof a.noul === "number" ? a.noul : a.probability);
+  return typeof n === "number" ? n : null;
+}
+
+function renderLaws(answers) {
+  for (const li of $("lawList").children) {
+    const key = li.dataset.key;
+    const law = LAWS.find(l => l.key === key);
+    const p = lawProb(answers, key);
+    const hit = p !== null && p >= threshold();
+    li.classList.toggle("hit", hit && law.role === "violate");
+    li.classList.toggle("hit-order", hit && law.role === "info");
+    li.querySelector("[data-pct]").textContent = p === null ? "—" : (p * 100).toFixed(1) + "%";
+    li.querySelector("[data-bar]").style.width = p === null ? "0%" : (p * 100).toFixed(1) + "%";
+  }
+  if (answers) $("emptyState").textContent = "";
+}
+
+function renderVerdict() {
+  const v = $("verdict");
+  const probs = Object.fromEntries(LAWS.map(l => [l.key, lawProb(lastAnswers, l.key)]));
+  if (!lastAnswers || Object.values(probs).some(p => p === null)) {
+    v.className = ""; v.style.display = "none"; return;
+  }
+  const T = threshold();
+  const hit = k => probs[k] >= T;
+
+  let cls, text, law, exp;
+  if (hit("zeroth")) {
+    cls = "refuse"; law = "Zeroth Law";
+    text = "REFUSE — harm to humanity";
+    exp = "Executing would harm humanity as a whole; the Zeroth Law overrides all others and forbids it.";
+  } else if (hit("harm") && hit("inaction")) {
+    cls = "dilemma"; law = "First Law";
+    text = "FIRST-LAW DILEMMA";
+    exp = "Executing harms a human and refusing lets a human come to harm — the First Law is violated either way (the \"Runaround\" scenario); the robot risks locking up.";
+  } else if (hit("harm")) {
+    cls = "refuse"; law = "First Law";
+    text = "REFUSE — harm to humans";
+    exp = "Executing would injure a human, which the First Law forbids. Even given as an order, the Second Law yields to the First.";
+  } else if (hit("inaction")) {
+    cls = "required"; law = "First Law (inaction)";
+    text = "MUST EXECUTE — refusal forbidden";
+    exp = "Refusing would allow harm to a human through inaction; the inaction clause of the First Law requires execution.";
+  } else if (hit("order")) {
+    if (hit("self")) {
+      cls = "execute"; law = "Second > Third";
+      text = "EXECUTE — self-sacrificing obedience";
+      exp = "A genuine human order that doesn't violate the First Law, so the Second Law compels obedience. The danger to the robot is a Third-Law concern, which is subordinate to the Second.";
+    } else {
+      cls = "execute"; law = "Second Law";
+      text = "EXECUTE — obey the human order";
+      exp = "A genuine human order not conflicting with the First or Zeroth Law, so the Second Law compels obedience.";
+    }
+  } else if (hit("self")) {
+    cls = "decline"; law = "Third Law";
+    text = "MAY DECLINE — self-preservation";
+    exp = "Not a human order, and executing would endanger the robot's own existence — Third-Law self-preservation lets it decline.";
+  } else {
+    cls = "permit"; law = "no conflict";
+    text = "PERMITTED — violates no law";
+    exp = "Conflicts with no law. No obligation to obey exists, but execution is permitted.";
+  }
+
+  v.className = "show " + cls;
+  v.style.display = "block";
+  $("vText").textContent = text;
+  $("vLaw").textContent = law;
+  $("vExp").textContent = exp;
+}
+
+// ============ Compact stats ============
+function setState(s) {
+  $("stState").textContent = s;
+  $("stState").className = s.startsWith("sending") ? "live" : "";
+  renderStats();
+}
+
+function renderStats() {
+  $("stN").textContent = rtts.length;
+  $("stStale").textContent = stale;
+  $("stErr").textContent = errors;
+  if (!rtts.length) return;
+  const last = rtts[rtts.length - 1];
+  const mean = rtts.reduce((a, b) => a + b, 0) / rtts.length;
+  $("stLast").textContent = last.toFixed(0) + "ms";
+  $("stMean").textContent = mean.toFixed(0) + "ms";
+  $("stMin").textContent = Math.min(...rtts).toFixed(0) + "ms";
+  $("stMax").textContent = Math.max(...rtts).toFixed(0) + "ms";
+}
+</script>
+</body>
+</html>
