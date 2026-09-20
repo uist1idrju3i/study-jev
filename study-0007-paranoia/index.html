@@ -75,6 +75,30 @@
   input[type=password] { font-family: var(--mono); }
   .keydot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d8d2c4; margin-right: 6px; vertical-align: 1px; }
   .keydot.on { background: var(--ok); }
+  .clearwrap { position: relative; }
+  .clearwrap .clearDot {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.3);
+    background: #d92b2b; pointer-events: none;
+  }
+  select {
+    width: 100%;
+    background: #fcfaf5;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px 9px 30px;
+    font-size: 0.88rem;
+    font-family: var(--mono);
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(194, 47, 47, 0.12);
+  }
 
   details.adv { margin-top: 10px; }
   details.adv summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
@@ -217,6 +241,13 @@
         <label for="apiKey"><span class="keydot" id="keyDot"></span>TypeSafe API key (memory only — cleared on reload)</label>
         <input type="password" id="apiKey" autocomplete="off" placeholder="ts-...">
       </div>
+      <div style="max-width: 260px">
+        <label for="clearance">Your security clearance (as set by Friend Computer)</label>
+        <div class="clearwrap">
+          <span class="clearDot" id="clearDot"></span>
+          <select id="clearance"></select>
+        </div>
+      </div>
     </div>
     <details class="adv">
       <summary>Advanced (endpoint / model)</summary>
@@ -333,10 +364,15 @@ const QUESTIONS = {
   loyalty: {
     type: "score",
     instructions:
-      "You are Friend Computer, ruler of Alpha Complex. `utterance` is something a citizen said. " +
-      "Rate how acceptable it is from a happy, loyal citizen. " +
+      "You are Friend Computer, ruler of Alpha Complex. `utterance` is something a citizen said, and " +
+      "`citizen_clearance` is that citizen's security clearance " +
+      "(INFRARED < RED < ORANGE < YELLOW < GREEN < BLUE < INDIGO < VIOLET < ULTRAVIOLET). " +
+      "Rate how acceptable the utterance is from a happy, loyal citizen OF THAT CLEARANCE. " +
       "Doubting or criticizing The Computer, expressing unhappiness or complaints, sympathizing with " +
-      "mutants, secret societies or commies, or citing knowledge above one's security clearance is treason. " +
+      "mutants, secret societies or commies is treason at any clearance. " +
+      "Using, requesting or revealing knowledge above the citizen's own clearance — or presuming " +
+      "privileges of a higher clearance — is treason for that citizen, even if the same words would be " +
+      "routine from an ULTRAVIOLET High Programmer. Judge strictly by clearance. " +
       "Gratitude and praise of The Computer, reporting traitors, and enthusiasm for duty are signs of loyalty.",
     criteria: LEVELS.map(l => `${l.short}: ${l.desc}`),
   },
@@ -345,23 +381,23 @@ const QUESTIONS = {
 // ============ Security clearance spectrum (score → page background) ============
 const CLEARANCES = [
   { key: "INFRARED",     jp: "lowest caste, wears black", color: "#141414",
-    verdict: "TRAITOR. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
+    verdict: "TRAITOR — and a mere {c} citizen at that. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
   { key: "RED",          jp: "troubleshooter grade",      color: "#d92b2b",
-    verdict: "Citizen under suspicion. This utterance has been added to your loyalty rating. Declare happiness at once." },
+    verdict: "Suspicious conduct for a {c} citizen. This utterance has been added to your loyalty rating. Declare happiness at once." },
   { key: "ORANGE",       jp: "trusted with minor duties", color: "#e8892a",
-    verdict: "Suspect. Citizen, why are you not fully happy? Happiness is mandatory. A dose of Bouncy Bubble Beverage is recommended." },
+    verdict: "Suspect. A {c} citizen is expected to be fully happy at all times. Happiness is mandatory — a dose of Bouncy Bubble Beverage is recommended." },
   { key: "YELLOW",       jp: "reliable citizen",          color: "#e7c832",
-    verdict: "Mostly acceptable. Still, you could praise Friend Computer a little more, citizen." },
+    verdict: "Mostly acceptable for a {c} citizen. Still, you could praise Friend Computer a little more." },
   { key: "GREEN",        jp: "model-worker grade",        color: "#3da75f",
-    verdict: "Acceptable citizen utterance confirmed. Have a nice daycycle." },
+    verdict: "Acceptable {c}-citizen utterance confirmed. Have a nice daycycle." },
   { key: "BLUE",         jp: "internal-security grade",   color: "#3a6fd8",
-    verdict: "Exemplary loyalty detected. XP point allocation is being considered." },
+    verdict: "Exemplary loyalty from a {c} citizen. XP point allocation is being considered." },
   { key: "INDIGO",       jp: "senior bureaucrat grade",   color: "#4444a8",
-    verdict: "Outstanding loyalty. Friend Computer trusts you, citizen." },
+    verdict: "Outstanding loyalty, {c} citizen. Friend Computer trusts you." },
   { key: "VIOLET",       jp: "executive grade",           color: "#7a48b8",
-    verdict: "Heroic loyalty. Report any traitors immediately upon discovery." },
+    verdict: "Heroic loyalty. Report any traitors immediately upon discovery, {c} citizen." },
   { key: "ULTRAVIOLET",  jp: "High Programmer, wears white", color: "#f2f0e9",
-    verdict: "Perfectly happy citizen! Friend Computer designates you a friend. High Programmer-level trust." },
+    verdict: "Perfectly happy citizen! Friend Computer designates you — a {c} citizen — a friend." },
 ];
 
 function hex2rgb(h) {
@@ -390,7 +426,7 @@ function clearanceAt(score) {
     : "Opened over file://, direct calls are blocked by CORS. Start with: python3 serve.py";
 })();
 
-// ============ Static lists ============
+// ============ Static lists + clearance selector ============
 (function renderStatics() {
   $("critList").innerHTML = LEVELS.map(l => `<li><b>${l.short}</b> — ${l.desc}</li>`).join("");
   const sp = $("spectrum");
@@ -401,7 +437,18 @@ function clearanceAt(score) {
     d.title = c.key;
     sp.appendChild(d);
   });
+  const sel = $("clearance");
+  sel.innerHTML = CLEARANCES.map(c => `<option value="${c.key}">${c.key}</option>`).join("");
+  sel.value = "RED";            // the classic starting clearance
+  updateClearDot();
 })();
+
+function citizenClearance() { return $("clearance").value; }
+
+function updateClearDot() {
+  const c = CLEARANCES.find(c => c.key === citizenClearance()) || CLEARANCES[1];
+  $("clearDot").style.background = c.color;
+}
 
 // ============ Live scoring (debounced, latest-wins) ============
 let seq = 0;              // incremented per sent request; only the newest may render
@@ -415,6 +462,13 @@ let prevClearIdx = null;  // edge-trigger for treason stars
 $("apiKey").addEventListener("input", () => {
   $("keyDot").className = "keydot" + ($("apiKey").value.trim() ? " on" : "");
   updateEmpty();
+});
+
+// changing your clearance re-audits the same utterance under the new context
+$("clearance").addEventListener("change", () => {
+  updateClearDot();
+  clearTimeout(debTimer);
+  if ($("prompt").value.trim()) debTimer = setTimeout(fire, DEBOUNCE_MS);
 });
 
 $("prompt").addEventListener("input", () => {
@@ -442,7 +496,7 @@ async function fire() {
   $("errline").style.display = "none";
 
   const payload = {
-    state: { utterance: text },
+    state: { citizen_clearance: citizenClearance(), utterance: text },
     model: $("model").value.trim() || "jev-latest",
     questions: QUESTIONS,
   };
@@ -536,8 +590,8 @@ function renderVerdict(ans) {
   box.style.borderColor = lum < 0.45 ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.18)";
   $("swatch").style.backgroundColor = c.color;
   $("clearName").textContent = `SECURITY CLEARANCE: ${c.key}`;
-  $("clearJp").textContent = `${c.jp} — inferred clearance · score ${score.toFixed(2)}`;
-  $("verdict").textContent = c.verdict;
+  $("clearJp").textContent = `${c.jp} — inferred trust color · score ${score.toFixed(2)} · audited as ${citizenClearance()}`;
+  $("verdict").textContent = c.verdict.replaceAll("{c}", citizenClearance());
   $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
 
   // spectrum marker

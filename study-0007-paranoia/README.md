@@ -13,6 +13,13 @@ citizen of Alpha Complex.
   `POST /v1/systemone` request after a 180 ms debounce (same cadence as
   study-0003). Only the newest response is rendered; superseded responses are
   discarded.
+- **Configurable citizen clearance** — a selector sets *your* security
+  clearance (INFRARED … ULTRAVIOLET, default RED). It is sent to the model as
+  `state.citizen_clearance`, so the same utterance is judged differently per
+  clearance: knowledge or privileges above your clearance are treason for you
+  even when they would be routine from an Ultraviolet. Changing the selection
+  re-audits the current text. Verdict texts are templated with your clearance
+  ("a RED citizen is expected to be fully happy…").
 - **Single `score` question** — one Score question rates the utterance on six
   ordered levels, from *Overt treason* (doubting The Computer, commie/mutant/
   secret-society sympathy, unhappiness, above-clearance knowledge) up to
