@@ -16,10 +16,14 @@ citizen of Alpha Complex.
 - **Configurable citizen clearance** — a selector sets *your* security
   clearance (INFRARED … ULTRAVIOLET, default RED). It is sent to the model as
   `state.citizen_clearance`, and the question's `instructions` embed a
-  per-clearance permission brief (each grade's `allows` text — what it may
-  legally know and do), so the same utterance is judged differently per
-  clearance: knowledge or privileges above your clearance are treason for you
-  even when they would be routine from an Ultraviolet. The selected grade's
+  canon-grounded permission brief for every grade (each `allows` text covers
+  duties, areas, equipment, authority over lower grades — e.g. IntSec powers
+  at BLUE, High Programmer privileges at ULTRAVIOLET — plus the general laws
+  that everything is clearance-coded and higher grades may terminate lower
+  traitors; an INFRARED volunteering speech is already suspect), so the same
+  utterance is judged differently per clearance: knowledge or privileges
+  above your clearance are treason for you even when they would be routine
+  from an Ultraviolet. The selected grade's
   description appears under the selector and all nine are listed with color
   chips in the rubric panel. Changing the selection re-audits the current
   text. Verdict texts are templated with your clearance ("a RED citizen is

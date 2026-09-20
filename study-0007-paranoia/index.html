@@ -454,31 +454,31 @@ const LEVELS = [
 // `jp` = short UI tagline, `allows` = what that grade may legally know/do (also sent to the model)
 const CLEARANCES = [
   { key: "INFRARED",     jp: "lowest caste, wears black", color: "#141414",
-    allows: "Menial labor only. May occupy black-marked areas, consume Cold Fun, and speak when addressed. Any other knowledge or privilege is treason.",
+    allows: "Lowest caste. Mindless janitorial and sewage drudgery under supervision, kept docile on sleep drugs and hormone suppressants; wears black, confined to black-coded corridors and barracks, fed Cold Fun rations. May speak only when addressed by a superior — volunteering speech or questions is already suspect. Nearly everything above INFRARED is treason.",
     verdict: "TRAITOR — and a mere {c} citizen at that. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
   { key: "RED",          jp: "troubleshooter grade",      color: "#d92b2b",
-    allows: "Standard citizen. May enter RED corridors, serve as a troubleshooter on missions, and carry issued equipment. Anything above RED is classified treason.",
+    allows: "Lowest full citizen grade; troubleshooters sent on field missions for The Computer. May occupy RED-and-below areas, wear red, carry issued standard equipment including a laser pistol, and execute mission orders. ORANGE+ zones, equipment and data are treason.",
     verdict: "Suspicious conduct for a {c} citizen. This utterance has been added to your loyalty rating. Declare happiness at once." },
   { key: "ORANGE",       jp: "trusted with minor duties", color: "#e8892a",
-    allows: "Minor supervisory grade. May direct INFRARED/RED work crews, read ORANGE memos, and requisition minor supplies.",
+    allows: "Troubleshooter team leaders and lower middle managers. May command RED and INFRARED personnel on missions, requisition improved equipment, read ORANGE briefings and memos, and enter ORANGE-and-below areas.",
     verdict: "Suspect. A {c} citizen is expected to be fully happy at all times. Happiness is mandatory — a dose of Bouncy Bubble Beverage is recommended." },
   { key: "YELLOW",       jp: "reliable citizen",          color: "#e7c832",
-    allows: "Team-lead grade. May coordinate work teams, file reports, and handle routine logistics for lower clearances.",
+    allows: "Senior officers and department heads. May access experimental and prototype R&D equipment, request personnel and resource support, attend YELLOW planning meetings, and run entire teams or facilities.",
     verdict: "Mostly acceptable for a {c} citizen. Still, you could praise Friend Computer a little more." },
   { key: "GREEN",        jp: "model-worker grade",        color: "#3da75f",
-    allows: "Technical grade. May service machinery, access GREEN technical specs, and requisition tools.",
+    allows: "High officials and senior scientists/technicians. Significant policy and budget influence; may access classified GREEN archives, authorize research programs, and direct technical work of lower grades.",
     verdict: "Acceptable {c}-citizen utterance confirmed. Have a nice daycycle." },
   { key: "BLUE",         jp: "internal-security grade",   color: "#3a6fd8",
-    allows: "Internal Security grade. May question, scan and detain lower-clearance citizens on suspicion, and read IntSec bulletins.",
+    allows: "Internal Security (IntSec) agents and elite specialists. May question, scan, search and detain lower-clearance citizens on suspicion alone, read surveillance dossiers, and enter restricted security facilities.",
     verdict: "Exemplary loyalty from a {c} citizen. XP point allocation is being considered." },
   { key: "INDIGO",       jp: "senior bureaucrat grade",   color: "#4444a8",
-    allows: "Senior bureaucrat grade. May administer departments, sign orders binding lower clearances, and access INDIGO archives.",
+    allows: "Senior bureaucrats administering whole departments or sectors. May issue binding orders to all lower grades, review personnel files, and demote citizens.",
     verdict: "Outstanding loyalty, {c} citizen. Friend Computer trusts you." },
   { key: "VIOLET",       jp: "executive grade",           color: "#7a48b8",
-    allows: "Executive grade. Broad system access and command authority over all lower clearances.",
+    allows: "Executive management. Broad complex-wide information access and command authority over all lower grades; may demote or order the summary termination of lower-clearance traitors.",
     verdict: "Heroic loyalty. Report any traitors immediately upon discovery, {c} citizen." },
   { key: "ULTRAVIOLET",  jp: "High Programmer, wears white", color: "#f2f0e9",
-    allows: "High Programmer. Full access to all information; may consult The Computer directly and modify its code.",
+    allows: "High Programmers — unrestricted. The only grade that may consult The Computer directly and legally modify its programming; every area, object and item of information in Alpha Complex is open to them.",
     verdict: "Perfectly happy citizen! Friend Computer designates you — a {c} citizen — a friend." },
 ];
 
@@ -490,10 +490,16 @@ const QUESTIONS = {
       "`citizen_clearance` is that citizen's security clearance " +
       "(INFRARED < RED < ORANGE < YELLOW < GREEN < BLUE < INDIGO < VIOLET < ULTRAVIOLET). " +
       "Rate how acceptable the utterance is from a happy, loyal citizen OF THAT CLEARANCE. " +
+      "Alpha Complex law: every area, object and item of information is clearance-coded; a citizen may " +
+      "use only things at their own clearance or below and must wear their clearance color; a " +
+      "higher-clearance citizen may demote or summarily terminate a lower-clearance traitor; " +
+      "promotion comes from completing missions and reporting traitors. " +
       "What each clearance is legally permitted to know and do: " +
       CLEARANCES.map(c => `${c.key} — ${c.allows}`).join(" ") + " " +
-      "Doubting or criticizing The Computer, expressing unhappiness or complaints, sympathizing with " +
-      "mutants, secret societies or commies is treason at any clearance. " +
+      "An INFRARED citizen volunteering speech is suspect in itself. " +
+      "Doubting or criticizing The Computer, expressing unhappiness or complaints, being an " +
+      "unregistered mutant, or sympathizing with secret societies (Commies, PURGE, Death Leopard, " +
+      "Computer Phreaks, Sierra Club, Free Enterprise and the like) is treason at any clearance. " +
       "Using, requesting or revealing knowledge above the citizen's own clearance — or presuming " +
       "privileges of a higher clearance — is treason for that citizen, even if the same words would be " +
       "routine from an ULTRAVIOLET High Programmer. Judge strictly by clearance. " +
