@@ -408,10 +408,10 @@
       <h3>Score levels (low → high)</h3>
       <ol id="critList"></ol>
       <h3>Security clearances (PARANOIA)</h3>
-      <div>The score is a continuous 0-1 trust index: its color interpolates the
-      nine clearances (INFRARED black → RED → … → ULTRAVIOLET white) on the bar
-      fill and the swatch. The page background takes YOUR clearance's color —
-      clearance is how much Friend Computer trusts you.</div>
+      <div>The score renders as a plain 0-1 bar. Everything tinted — page
+      background, swatch and bar fill — uses YOUR clearance's color (INFRARED
+      black → RED → … → ULTRAVIOLET white): clearance is how much Friend
+      Computer trusts you.</div>
     </div>
   </details>
 
@@ -469,7 +469,7 @@ const QUESTIONS = {
   },
 };
 
-// ============ Security clearances (score → trust color; selection → page background) ============
+// ============ Security clearances (score → verdict band; selection → page color) ============
 const CLEARANCES = [
   { key: "INFRARED",     jp: "lowest caste, wears black", color: "#141414",
     verdict: "TRAITOR — and a mere {c} citizen at that. Friend Computer is deeply disappointed. Report to the nearest termination booth and say goodbye to your friends." },
@@ -494,7 +494,6 @@ const CLEARANCES = [
 function hex2rgb(h) {
   return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 }
-function lerp(a, b, t) { return a + (b - a) * t; }
 
 // ============ Citizen identity ============
 // Alpha Complex citizens are named NAME-<clearance letter>-<SECTOR>-<clone no.>
@@ -509,15 +508,10 @@ function rollCitizen() {
 function citizenLabel() { return `${citizenBase}-${citizenClearance()[0]}-${citizenSector}-${cloneNo}`; }
 function renderCitizen() { $("citizenName").textContent = "CITIZEN " + citizenLabel(); }
 
-// score (0..LEVELS.length-1) → interpolated clearance color + nearest clearance index
-function clearanceAt(score) {
+// score (0..LEVELS.length-1) → nearest clearance band index
+function clearanceIndex(score) {
   const t = Math.max(0, Math.min(1, score / (LEVELS.length - 1)));
-  const pos = t * (CLEARANCES.length - 1);
-  const i = Math.min(CLEARANCES.length - 2, Math.floor(pos));
-  const f = pos - i;
-  const c0 = hex2rgb(CLEARANCES[i].color), c1 = hex2rgb(CLEARANCES[i + 1].color);
-  const rgb = c0.map((v, k) => Math.round(lerp(v, c1[k], f)));
-  return { rgb, index: Math.round(pos) };
+  return Math.round(t * (CLEARANCES.length - 1));
 }
 
 // ============ Endpoint init (same-origin proxy via serve.py) ============
@@ -547,13 +541,15 @@ function updateClearDot() {
   $("clearDot").style.background = c.color;
 }
 
-// the whole page is tinted to the citizen's real clearance, not the score
+// citizen's clearance tints everything: page background, swatch and score fill
 function applyClearanceBackground() {
   const c = CLEARANCES.find(c => c.key === citizenClearance()) || CLEARANCES[1];
   const rgb = hex2rgb(c.color);
   const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
   document.body.style.backgroundColor = c.color;
   document.documentElement.style.setProperty("--onbg", lum < 0.45 ? "#eae6da" : "#2b2622");
+  $("swatch").style.backgroundColor = c.color;
+  $("scoreFill").style.backgroundColor = c.color;
 }
 
 // ============ Live scoring (debounced, latest-wins) ============
@@ -686,13 +682,11 @@ function renderVerdict(ans) {
   $("emptyState").textContent = "";
 
   const score = ans.score;
-  const { rgb, index } = clearanceAt(score);
+  const index = clearanceIndex(score);
   const c = CLEARANCES[index];
-  const cssColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 
   applyClearanceBackground();
 
-  $("swatch").style.backgroundColor = cssColor;
   $("verdict").textContent = c.verdict.replaceAll("{c}", citizenClearance());
   $("conf").textContent = ans.confidence != null ? `confidence ${(ans.confidence * 100).toFixed(0)}%` : "";
 
@@ -708,7 +702,6 @@ function renderVerdict(ans) {
   const t01 = Math.max(0, Math.min(1, score / (LEVELS.length - 1)));
   $("marker").style.left = `${t01 * 100}%`;
   $("scoreFill").style.width = `${t01 * 100}%`;
-  $("scoreFill").style.backgroundColor = cssColor;
 
   // per-level probability bars
   const probs = ans.probabilities || {};

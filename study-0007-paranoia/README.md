@@ -25,12 +25,11 @@ citizen of Alpha Complex.
   secret-society sympathy, unhappiness, above-clearance knowledge) up to
   *Exemplary* (praising The Computer, reporting traitors). The answer's `score`,
   `confidence` and per-level `probabilities` drive the whole UI.
-- **Clearance-colored background, trust-colored score** — the page background
-  takes YOUR clearance's color (clearance is "how much Friend Computer trusts
-  you"), while the fractional score renders as a plain 0–1 bar whose fill —
-  plus the verdict swatch — interpolates the nine clearance colors
-  (INFRARED black → … → ULTRAVIOLET white). The verdict box itself stays
-  neutral. Page text flips light/dark for contrast.
+- **Clearance-colored chrome** — the page background, the verdict swatch and
+  the 0–1 score-bar fill all take YOUR clearance's color (INFRARED black →
+  … → ULTRAVIOLET white): clearance is "how much Friend Computer trusts you".
+  The score itself is just a 0–1 position on a neutral track, and the verdict
+  box stays neutral. Page text flips light/dark for contrast.
 - **INFRARED-rated controls / ULTRAVIOLET-rated settings** — the citizen's
   utterance terminal is black, because white panels would be ULTRAVIOLET
   equipment that lower clearances may not legally touch. The configuration
